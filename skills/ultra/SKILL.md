@@ -15,8 +15,10 @@ exit codes: `__UBP_ENGINE_FORMATS__`.
 
 ## Every session starts the same way
 
-1. `ubp status --json`. If `.ultra/spec.md` does not exist, go to "Start" (new or existing code).
-   If it exists but `.ultra/design.md` does not, write the design (Start step 1) before any node.
+1. `ubp status --json`. If `.ultra/spec.md` does not exist (not started), go to "Start".
+   If the spec exists but `.ultra/design.md` does not, survey the project as Start
+   step 1 says, registering nothing the checks already hold, and write the design before the
+   next node; while a drive runs, wait for it to end first.
 2. `git log --oneline -10` and `git status --short`.
 3. When the current milestone has a `journey`, run it once: `ubp check <journey>`. A red
    journey at the start of a session is the first thing to fix.
@@ -24,7 +26,7 @@ exit codes: `__UBP_ENGINE_FORMATS__`.
 
 | Status | Step |
 |---|---|
-| `drive` is set (the line ends with `drive 运行中`) and `UBP_DRIVE` is not (you are not that drive's writer or reviewer) | a drive may be running on this tree. When `ps -o command= -p <drive>` exits 0 and prints a full command line (program and arguments) without the word `drive`, the pid now belongs to another process and the lock is left over: remove `.ultra/.runtime/drive.lock` and read the status again. If `ps` fails, prints nothing or prints only a program name such as `(node)`, treat the drive as running. Otherwise brief no writer, start no drive and change no file: if this session started the drive, wait for its completion notice; if not, tell the Owner it is running (its pid is `drive`) and stop |
+| `drive` is set (the line ends with `drive 运行中`) and `UBP_DRIVE` is not (you are not that drive's writer or reviewer) | a drive may be running on this tree: change no file, brief no writer and start no drive; follow "A drive in the status" in `references/drive.md` |
 | `dirty: true` | commit or discard first; evidence from a dirty tree never counts |
 | `gate: "fail"` | fix the reported `problems` (see "Plan") |
 | `gate: "stale"` | `ubp gate`, which records the plan change |
@@ -37,8 +39,9 @@ exit codes: `__UBP_ENGINE_FORMATS__`.
 Whenever you report progress to the Owner, paste the line `ubp status` printed. Report it
 unasked after every node and every gate step, and relay each line a running drive prints: an
 Owner who has to ask "what is happening" is a failure of this rule. `待复核`: finished work
-whose checks last passed and went stale (after a code commit a rerun settles it; after a
-requirement or check edit its node may need rework); `未绿`: a check failed or never ran.
+whose checks last passed and went stale (after a code commit a rerun settles it; after an
+edit of a requirement, a check or the spec's shared text its node may need rework); `未绿`: a
+check failed or never ran.
 
 ## Roles
 
@@ -48,28 +51,32 @@ context: a new subagent or delegated session that sees the node brief and the re
 not your conversation.
 
 Per node, the default is one fresh writer followed by your verification (Node loop step 4):
-no per-node explorer, tester or second reviewer (measured on nine nodes: three to five times
-the tokens, no higher score on hidden checks, one defect found between them). Add a read, a
-review or a test run only to a node you judge risky. A reviewer from another vendor, when
-available, reviews the whole branch at the milestone gate.
+no per-node explorer, tester or second reviewer, which cost tokens without raising quality.
+Add a read, a review or a test run only to a node you judge risky. A reviewer from another
+vendor, when available, reviews the whole branch at the milestone gate.
 
 ## Start (new or existing project)
 
 Goal: before any requirement, know what exists, what is not known, and what the Owner wants,
 in their own words. Four steps, in order; each writes a file, and the next step reads it.
 
-1. **Survey (planner), always.** Read what is there: `git log`, the layout, how it is built,
-   run and tested, its tests and its docs. Write `.ultra/design.md` (see "Project knowledge"):
-   its `## System` says how the system is built, run and tested today. For existing code, also:
-   - run the existing tests, then register their command as an invariant (a check with
-     `covers: []`, a `fix` and a `timeout_sec` above the measured run, see "Keeping it
+1. **Survey (planner), always.** A directory that is not a Git repository gets `git init` and
+   a first commit of what is there: the engine reads only committed code. Read what is there:
+   `git log`, the layout, how it is built, run and tested, its tests and its docs. Write
+   `.ultra/design.md` (see "Project knowledge"): its `## System` says how the system is built,
+   run and tested today. For existing code, also:
+   - run the existing tests and time them, then register their command (the runner and a
+     glob, not a list of files, so tests added later join it) as an invariant: a check with
+     `covers: []`, a `fix` and a `timeout_sec` above the measured run (see "Keeping it
      tidy"), so every node keeps what already passes. Tests already red or flaky go under
-     `## Facts`: fixing them is the first node, or the invariant runs only what passes;
-   - before a node changes a behavior no test pins, add a characterization check that pins
-     what the code does today, committed green, then change it through a requirement;
-   - a behavior an existing test pins changes through a requirement too: the acceptance
-     author rewrites that test to the new behavior with the requirement's checks, committed
-     red before the node (L1 modify; a reduction only when someone gets less);
+     `## Facts`; the invariant leaves them out (another file, or the runner's skip filter),
+     or the milestone's first node is a cleanup node (`"kind": "cleanup"`) that fixes them;
+   - a behavior this work changes gets its own check before its node. A test that pins it
+     moves out of the invariant (to another file, or behind the runner's skip filter) into
+     the requirement's check, rewritten to the new behavior and committed red: left in the
+     invariant, it would refuse every node planned before the change. Where no test pins
+     what surrounds the change, add a characterization check of what must stay the same,
+     committed green;
    - requirements cover what this work adds or changes, not the whole existing system;
      the invariant and the characterization checks keep the rest.
 2. **Investigate (planner), only what decides something.** List the unknowns whose answer
@@ -235,35 +242,16 @@ When `next` is `里程碑门`:
    `git worktree remove --force <temp>`): a fix that lives only in a file Git ignores or
    hides passes here while HEAD lacks it. A check green here and red there is a stop: find
    the file and commit it. Then `ubp retro` (see "Keeping it tidy").
-2. Whole-branch review. A reviewer who wrote none of the milestone's code reads the
-   milestone's diff (from the previous closure commit, or from the start), its requirements,
-   the plan-log changes, the rulings and the writers' handoffs since the previous closure, and
-   the Owner's words: `.ultra/records/interview.md` and the lines of
-   `.ultra/records/owner-touches.md` since the previous closure. A requirement or Direction
-   that says other than the Owner said, or a spec change that leaves some input or user with
-   less than before without an approval, blocks. Ask it to use the product through its user
-   documentation, as a new user would (documentation missing or wrong for a behavior of this
-   milestone breaks that requirement's `Done when`), to drive it by hand and to run the checks
-   against deliberately broken copies of the code: a check that passes on a broken copy is an
-   acceptance gap. The Owner's rule (2026-11-02) is that a check that could be stronger never
-   blocks, so every round uses one bar: a finding blocks only when the product, as HEAD builds
-   it, breaks a requirement's `Done when` line or the Direction, or does something wrong that
-   a person can reproduce through its real interface. Wrong means it contradicts the text of
-   the spec (a requirement, the Interface or the Direction), loses or corrupts data, crashes,
-   or opens a security hole. An acceptance gap does not block once the reviewer has driven
-   HEAD through its real interface on the input the broken copy got wrong and seen it behave
-   correctly: it quotes what HEAD did, names the check that would close the gap under `What
-   must be said to the Owner`, and the verdict stays `accept`. The review,
-   `.ultra/records/milestones/<milestone>-review.md`, holds a first line `Reviewer: <who>`,
-   the findings that block (each naming the `Done when` line, the Direction or the
-   reproduction it rests on), a section `What must be said to the Owner` with everything else,
-   then exactly one line `Verdict: accept` (no finding blocks) or `Verdict: revise`. Quote an
-   earlier verdict only inside a code fence. On `revise`, keep that review as
-   `<milestone>-review-<n>.md`, triage every blocking finding with "Escalation" (a fix that
-   narrows a requirement goes to the Owner first), change the spec and the checks as
-   acceptance author, `ubp gate`, rework the stale nodes through the node loop, and review
-   again. A review after a `revise` also checks each blocking finding of that review and looks
-   for regressions.
+2. Whole-branch review. Give a reviewer who wrote none of the milestone's code the milestone
+   id, the workspace, how to call `ubp`, and `references/review.md`, the one set of reviewer
+   instructions: what it reads (the Owner's words and `.ultra/design.md` among them), how it
+   uses the product and breaks the checks, the Owner's bar (a check that could be stronger
+   never blocks), and the review file, `.ultra/records/milestones/<milestone>-review.md`,
+   ending in exactly one line `Verdict: accept` or `Verdict: revise`. Brief it with that
+   file, not your summary of it. On `revise`, keep that review as `<milestone>-review-<n>.md`,
+   triage every blocking finding with "Escalation" (a fix that narrows a requirement goes to
+   the Owner first), change the spec and the checks as acceptance author, `ubp gate`, rework
+   the stale nodes through the node loop, and review again.
 3. Demo for the Owner, in this order: what to try by hand (the journey in user terms), the
    journey check's result and log path, the progress line, the plan changes since the
    previous closure (`.ultra/ledger/plan-log.jsonl`), the rulings since then, the repeated
@@ -292,7 +280,7 @@ Name the layer before touching any file, then follow its row. Every row ends wit
 | Difference | Layer | What you do | What the engine does |
 |---|---|---|---|
 | a new behavior | L1 add | spec block, a red check (commit it before code), a node; gate | new node `ready`; no other node changes state; every check is stale until `ubp check` (the new check file is code) |
-| a behavior changes | L1 modify | edit the block, its checks; gate | only nodes covering it turn `stale`; brief a writer with the new `ubp context` |
+| a behavior changes | L1 modify | edit the block, its checks; a test inside an invariant that pins the old behavior moves into the requirement's check first (Start step 1); gate | only nodes covering it turn `stale`; brief a writer with the new `ubp context` |
 | a behavior goes away or asks for less | L1 reduce | ask the Owner first (touch `reduction`); `ubp approve <milestone>/<id>… --owner "<words>"` (add `--proxy` when you answered for them); then edit | the gate refuses (`reduction-unapproved`) any dropped requirement, dropped check or narrowed check coverage without that record |
 | how it is built changes | L2 | a ruling; edit `.ultra/design.md` and the plan (usually a new node, or new `depends`); gate | the new node runs; requirement texts are unchanged, so no other node turns stale |
 | a shared convention changes (`## Interface`) | L2 | as above, plus edit the shared text | every node and check turns `stale` (`shared-changed`): rerun every check; a node whose checks are green again needs only `ubp node done` |

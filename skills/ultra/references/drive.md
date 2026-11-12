@@ -13,13 +13,16 @@ host's command timeout (at most 10 minutes in Claude Code).
 
 - In Claude Code, run `mkdir -p .ultra/.runtime`, start the drive with Bash
   `run_in_background` and `2> .ultra/.runtime/drive.err`, and watch that file with the
-  Monitor tool: `tail -n +1 -F .ultra/.runtime/drive.err | grep --line-buffered '^drive: '`
-  turns each event line into a notification, so you can relay it at once. A monitor ends at
-  its timeout (at most 30 minutes): re-arm it while the drive runs.
-- On a host without background commands, run `mkdir -p .ultra/.runtime`, start
-  `nohup <drive command> > .ultra/.runtime/drive.json 2> .ultra/.runtime/drive.err &`, tell
-  the Owner it is running and stop: a later session sees it in `ubp status` and, once `drive`
-  is null, reads `drive.json`, or `drive.err` when the drive printed no result.
+  Monitor tool, passing its longest timeout: `tail -n +1 -F .ultra/.runtime/drive.err` turns
+  each line, problems included, into a notification, so you can relay it at once. When the
+  monitor expires while the drive runs, arm it again with the same command; it replays the
+  file from the start, so relay only the lines not yet relayed. When the drive's completion
+  notice arrives, stop the monitor and relay what it had not delivered.
+- On any other host, run `mkdir -p .ultra/.runtime`, start
+  `nohup <drive command> > .ultra/.runtime/drive.json 2> .ultra/.runtime/drive.err &`, and
+  tell the Owner it is running and that `tail -f .ultra/.runtime/drive.err` shows each line
+  as it happens; then stop. A later session sees it in `ubp status` and, once `drive` is
+  null, reads `drive.json`, or `drive.err` when the drive printed no result.
 
 The writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
 `eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Headless Claude
@@ -33,8 +36,22 @@ With `--json`, stdout holds only the final JSON and stderr has one line per even
 `drive: run <id>` first, then `drive: <action> <subject>: <result>` for each check, gate,
 context, writer and reviewer step (a writer or reviewer line ends with its exit code), and at
 the end each problem as `<code>: <message> — <hint>` and `drive: stop <reason>`. Relay each
-writer line to the Owner as it arrives, with the line `ubp status` prints; on a host that only
-tells you when the drive ends, read the stderr file at each check-in and relay what is new.
+line to the Owner as it arrives, and the line `ubp status` prints after each writer line; on a
+host without line notifications, read `drive.err` at each check-in and relay what is new.
+
+## A drive in the status
+
+When `ubp status` shows `drive` (the line ends with `drive 运行中`) and `UBP_DRIVE` is not
+set (you are not that drive's writer or reviewer), a drive may be running on this tree.
+
+- When `ps -o command= -p <drive>` exits 0 and prints a full command line (program and
+  arguments) without the word `drive`, the pid now belongs to another process and the lock
+  is left over: remove `.ultra/.runtime/drive.lock` and read the status again.
+- If `ps` fails, prints nothing or prints only a program name such as `(node)`, treat the
+  drive as running.
+- While it runs, brief no writer, start no drive and change no file: if this session started
+  the drive, wait for its completion notice; if not, tell the Owner it is running (its pid
+  is `drive`) and stop.
 
 ## When it stops
 
@@ -66,8 +83,8 @@ drive does not), and act on `stop`:
   matching planner step.
 - `all-done`: every milestone is closed; report the status line to the Owner and ask whether
   to plan another milestone.
-- `drive-running`: another drive holds this tree; this one started nothing. Follow the
-  status table's first row. When `ubp status` shows no `drive`, the lock holds no live pid
+- `drive-running`: another drive holds this tree; this one started nothing. Follow "A drive
+  in the status" above. When `ubp status` shows no `drive`, the lock holds no live pid
   (a drive killed while taking it): remove `.ultra/.runtime/drive.lock` and start the drive
   again. Never remove it while its pid runs a drive.
 

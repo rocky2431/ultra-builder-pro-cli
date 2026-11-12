@@ -29,18 +29,22 @@ use for every engine command, regardless of any `ubp` on PATH. No Python runtime
 ## First session
 
 Open the project in Claude Code and invoke `/ultra` (full name `/ultra-builder-pro:ultra`);
-in Codex invoke `$ultra-builder-pro:ultra`. Run `ubp status` to see the current state.
+in Codex invoke `$ultra-builder-pro:ultra`. Run `ubp status` to see the current state; in a
+project that has not started it says so.
 A project without `.ultra/spec.md`, empty or with existing code, starts in four steps: survey
 what exists, investigate only the unknowns whose answer changes a requirement, a check or the
 plan, interview the Owner for the rest, and have the Owner confirm the Direction and every
-`Done when` line. Checks and a milestone plan follow. For existing code, the survey records how
-it is built, run and tested, and its test command becomes an invariant every node keeps.
+`Done when` line. Checks and a milestone plan follow. A directory that is not yet a Git
+repository gets `git init` and a first commit. For existing code, the survey records how it is
+built, run and tested, and its test command becomes an invariant every node keeps; a test that
+pins a behavior the Owner wants changed moves out of it into that requirement's own check.
 
 `.ultra/design.md` holds what the project knows: the system, the design decisions in force and
 the investigated facts with their sources. The planner keeps it, writers never edit it, and
 every node brief carries it together with the spec's Direction and Interface. In the progress
 line, `已关闭里程碑 n 项待复核` counts finished work whose checks last passed and went stale (after
-a code commit a rerun settles it; after a requirement or check edit its node may need rework);
+a code commit a rerun settles it; after an edit of a requirement, a check or the spec's shared
+text its node may need rework);
 `未绿` counts work whose latest check run failed or never ran.
 
 The SessionStart hook prints progress and a reminder to use `ultra` only when
@@ -60,7 +64,7 @@ See [Codex hook trust](https://learn.chatgpt.com/docs/hooks).
 | `ubp check [ids]` | Run checks and record evidence |
 | `ubp node done <id>` | Complete a node with green requirements |
 | `ubp context <id>` | Compile a node brief |
-| `ubp milestone close <id> --owner "words" --review <file>` | Close a reviewed milestone |
+| `ubp milestone close <id> --owner "words" --review .ultra/records/milestones/<id>-review.md` | Close a reviewed milestone |
 | `ubp approve <items> --owner "words"` | Record approval of reductions |
 | `ubp retro` | Show repeated failure classes |
 | `ubp merge <branch> --expect-head <sha>` | Verify and merge a worker branch |

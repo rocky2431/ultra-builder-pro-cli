@@ -75,3 +75,54 @@ Not done (the Owner decides): this repository's own Direction, design and per-te
 instructions, moving the status table's drive row into `drive.md`, and `milestone close`
 without `--review` (each changes a closed milestone's acceptance or the CLI); the package
 version (pinned at 6.0.0 by `tests/v6-package.test.cjs`).
+
+## Correction to round 1
+
+The section above says item 9 was done. Three of its six sub-items were not: the raw `ENOENT`
+of `ubp status` before a project starts (an engine change), `git init` and a first commit in
+Start, and the README's `--review` path. The heading levels inside `## Project` were left as
+specified. The round-2 review found this (`M-P6-review.md`, point 3).
+
+## Rework after the gate, round 2 (2026-11-12)
+
+The Owner answered gate step 4 with "先修 准确地说，全部修复完成了之后，我才会去做测试". Acceptance
+first (`45ef203`), then:
+
+- Start step 1: `git init` and a first commit for a directory that is not a repository; the
+  invariant registers the runner and a glob, not a list of files; a red or flaky baseline is
+  left out of it or fixed by a first `"kind": "cleanup"` node; a test that pins a behavior
+  this work changes moves out of the invariant into the requirement's check, rewritten red
+  (replaces the round-1 bullet that stalled every earlier node, point 1). The "a behavior
+  changes" row of "Changes after 0→1" points to the same rule.
+- Session step 1: the design comes from the survey without registering anything the checks
+  already hold, and never while a drive runs (point 3, item 4).
+- `待复核` names the shared text as a cause, in the method and both READMEs (item 3).
+- One `references/review.md` replaces the reviewer instructions of gate step 2 and of
+  `claude-reviewer.sh`, which now reads it (`UBP_REVIEW_GUIDE` overrides the path); it adds
+  `.ultra/design.md` to what the reviewer reads and asks where the same acceptance could be
+  met with less.
+- The status table's drive row routes to "A drive in the status" in `references/drive.md`,
+  which now holds the whole lock procedure next to `drive-running`.
+- `references/drive.md`: the monitor has no filter (problem lines are relayed too), takes
+  its longest timeout, relays only lines not yet relayed after a re-arm, and is stopped at
+  the drive's completion notice; other hosts tell the Owner `tail -f
+  .ultra/.runtime/drive.err`. "Relay each line" now matches the Skill.
+- The Roles evidence parenthetical is cut; the rule stays.
+- README: the review path in the command table, `git init`, the not-started status, the
+  pinned-test rule. CHANGELOG. Version 6.1.0-rc.0 in `package.json` and the lock (the README
+  still installs the published 6.0.0).
+- SKILL.md: 381 lines. Skill Creator `quick_validate.py`, Claude and Codex copies: valid.
+
+## Noticed and left unchanged (round 2)
+
+- The skip-filter route for moving a pinned test was run only on Node 25.7.0 (by the
+  round-2 reviewer); moving the test to another file works with any runner.
+- Codex has no equivalent of the Monitor tool that this method relies on; there the Owner
+  watches `drive.err` themselves.
+
+## Pinned by no check (round 2)
+
+- Whether a fresh session follows the pinned-test rule on a real codebase: the A7 trial that
+  changes a pinned Shortlink behavior judges it.
+- The rendered prompt of `claude-reviewer.sh` (checked by hand: the guide follows the
+  mission lines).
