@@ -5,14 +5,13 @@
 <!-- current-state -->
 - 问题：Owner 2026-11-11 要求换视角重新评审 v6 整个流程，并以之前遇到的情况为依据；评审完再决定改不改、怎么改。
 - 起因：Owner 先问 spec、文档和 research 环节；“research”被语音识别成 “architecture”，上一轮回答顺着 architecture 查，偏离了原问题。Owner 因此怀疑其他地方也有问题。
-- 阶段：Deliver。状态：waiting_user。
-- 已做：助手的独立判断（下文）；Codex 独立评审（delegation `cc7111912b334b71ab610f72509d38cf`，用时 855 s，只读，三个仓库 diff 都为空）；对照两边后写成 `RESULT.md`。
-- 复核过 Codex 的两条关键说法：`engine/milestone.cjs:29-38` 关闭时不核对评审属于哪个里程碑（属实）；R `rulings.md:18` 为了让约定进入 brief 专门加了依赖（属实，所以 RESULT 第 1 条从“未验证”升为“真实”）。引擎现在 1998/2000 行。
-- 两方分歧：research 的排序（助手第 1，Codex 第 5，理由是还没观察到它造成失败）；关闭核对是 Codex 构造出来的，没有真实误关。
-- Owner 2026-11-11 回复：“你不要管我下一个问题……肯定是要一次性全部搞完呀，因为我现在同时要开几个项目：有的项目是在已有代码上去做，有的是全新的。”所以上一个问题作废；新项目和已有代码库两种情况都要支持，8 条发现一次修完。
-- 已写出：统一方案（8 条归成 5 处修改，只新增 `.ultra/design.md` 一个文件）和执行合同，都在 `RESULT.md`。
-- 核实过的事实：安装器复制整个 `skills/ultra` 目录（`adapters/_shared/plugin-core.cjs:68`），但占位符只在 `SKILL.md` 里替换；`loading.cjs` 已经解析出共享文本；drive 在 `--json` 模式下不输出逐节点进展（`drive.cjs:111`）；引擎自有路径在 `git-state.cjs:57-61`。
-- 等待 Owner：确认执行合同。合同里包含两项必须由 Owner 明说的内容：引擎上限从 2000 改为 2050 行（会改动受保护的 P1 断言）；门通过后装进 `~/.claude`。
+- 阶段：执行合同（`RESULT.md`“执行合同”）。状态：active。Owner 2026-11-12：“确认，确认”（含上限 2050、门后装进 `~/.claude`）。
+- 走法：本仓库 `.ultra` 里程碑 M-P6，4 条 REQ（knowledge、status、close、method），检查 `C-engine-p6`、`C-method-p6`，节点 `N-P6-engine`（Codex）、`N-P6-method`（主会话）。提交：`e6e41c0` 合同，`085f959` 先写验收，`0d88c19` 开 M-P6。
+- 先红已确认（2026-11-12）：C-engine、C-engine-p2、C-package、C-release、C-engine-p6、C-method-p6 红，p3/p4/p5 绿。
+- N-P6-method：方法、`skills/ultra/references/{drive,merge}.md`、示例脚本、README、CHANGELOG 已写回；交接 `.ultra/records/handoffs/N-P6-method.md`。SKILL.md 393 行；两版 Skill Creator 校验通过。
+- N-P6-engine：Codex delegation `e9c94e60556f448ea3988cbda7803ddf`，克隆 `/Users/rocky243/Context Engineering/ubp-p6-engine` 分支 `m-p6-engine`；方法提交后才 `ubp merge`（合并门在合并后的树上跑已关闭里程碑的检查）。
+- A7 工作区：`/tmp/a7-shortlink`（删掉 `.ultra` 和样本标记，49 测试绿）、`/tmp/a7-empty`。
+- 未完成：引擎合入并核验（≤2050 行）；`check --all`；A7 两次无头实测；`reviewer` 子代理 xhigh 评审（≤2 轮）；门第 1 步含干净检出和 `retro`；Owner 本人放行；合入 main；release 检查；装进真实 `~/.claude`。不 push、不打 tag。
 - 结果文件：`RESULT.md`。
 <!-- /current-state -->
 
