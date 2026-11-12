@@ -89,3 +89,57 @@ method), a copy of the engine that the Skill names by absolute path, and one Ses
 that prints the `ubp status` line in a project with `.ultra/spec.md` and nothing elsewhere;
 `--doctor` reports `healthy`, `--uninstall` leaves nothing the install created, and nothing
 of 5.x ships.
+
+## REQ-P6-knowledge A writer works from what the project knows
+`.ultra/design.md` holds the project's current understanding: how the system is built, run
+and tested (for an existing codebase, its baseline), the design decisions in force, and the
+facts settled by investigation with their sources. The planner owns it and writers never
+edit it. It is engine-owned: writing or committing it never makes the tree dirty and never
+makes a check stale. `ubp context <node>` puts a section `## Project` between the milestone
+line and `## Requirements`: the spec's shared text (its lines outside requirement blocks, in
+file order, after CRLF→LF, trailing whitespace removed from every line, leading and trailing
+empty lines dropped), an empty line, `### .ultra/design.md`, an empty line, and the design's
+text read as a handoff is read, or `No design written.` when there is none. The first rule
+of the brief names `.ultra/design.md` among the files a writer must not edit. When the brief
+still exceeds its budget after the handoffs are shortened, the refusal's hint names
+`.ultra/design.md` as a place to shorten.
+Done when: a writer's brief contains the Direction, the Interface and `.ultra/design.md`, and
+editing `.ultra/design.md` leaves every piece of evidence as it was (contract A1, A2).
+
+## REQ-P6-status The status says what needs rechecking apart from what is not green
+A requirement of a closed milestone that is stale while the latest run of every check
+covering it passed is to be rechecked: `ubp status --json` counts it in `closed_recheck`,
+and the line says `已关闭里程碑 <n> 项待复核`. Every other requirement of a closed milestone
+that is not green counts in `closed_not_green`, and the line says `已关闭里程碑 <n> 项未绿`.
+Each segment appears only when its count is not zero, `未绿` before `待复核`. `ubp drive
+--json` writes to stderr every line the text mode prints to stdout (the run, each action,
+each problem and the stop), so a watcher sees each node as it finishes; stdout holds only
+the final JSON.
+Done when: after a commit that touches only notes, the line says 待复核 instead of 未绿, and
+a drive run with `--json` shows each node event on stderr (contract A3, A5).
+
+## REQ-P6-close A milestone closes only on its own review
+`ubp milestone close <id> --review <path>` refuses an accepting review whose path, once
+normalized, is not `.ultra/records/milestones/<id>-review.md`, with the problem
+`review-not-for-milestone` and no closure. A review that is missing or cannot be read is
+still refused only as `review-missing`.
+Done when: closing a milestone with another milestone's accepting review is refused
+(contract A4).
+
+## REQ-P6-method The method starts any project and keeps its knowledge flowing
+The installed `ultra` Skill starts a project without `.ultra/spec.md`, new or with existing
+code, in four steps: survey what exists (for existing code, `## System` in
+`.ultra/design.md`, the existing test command registered as an invariant, and
+characterization checks before an unpinned behavior is changed); investigate only the
+unknowns whose answer changes a requirement, a check or the plan, recording each answer and
+its source in `.ultra/design.md`; interview the Owner for what investigation cannot settle;
+and have the Owner confirm the Direction and every `Done when` line. It says who writes and
+who reads `.ultra/design.md`; its escalation covers a fact nobody knows; its milestone review
+checks the spec against the Owner's recorded words and uses the product through its user
+documentation, which is a requirement like any other; the controller reports the status line
+after every node and gate step; and every drive stop and merge refusal the engine can return
+is handled in a `references/` file the Skill names, keeping `SKILL.md` within 395 lines.
+Done when: the method covers the four start steps, the upkeep of `.ultra/design.md`, the
+escalation for an unknown fact, the review against the Owner's words, documentation as a
+requirement and progress reports, with drive and merge handling in references and
+`SKILL.md` no longer than 395 lines (contract A6).
