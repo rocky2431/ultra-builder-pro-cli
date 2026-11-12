@@ -104,11 +104,13 @@ function requirements(text) {
       }
     }
     if (current) current.lines.push(line);
-    else if (line.trimEnd()) shared.push(line.trimEnd());
+    else shared.push(line.trimEnd());
   });
   assertFile(!unclosed, `.ultra/spec.md:${unclosed}`, 'unclosed fence');
   finish();
-  return { reqs: result, requirementText, shared: hash(shared.join('\n')) };
+  const sharedText = shared.join('\n').replace(/^\n+|\n+$/gu, '');
+  return { reqs: result, requirementText, sharedText,
+    shared: hash(shared.filter(Boolean).join('\n')) };
 }
 
 function validateCheck(item, valid) {

@@ -6,9 +6,9 @@ const { status } = require('./states.cjs');
 function rules(id, checks) {
   const ids = checks.map((c) => c.id).join(' ') || '--stale';
   return [
-    '- Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/ledger/ '
-      + 'or the files the checks above run. If a check or a requirement looks wrong, '
-      + 'stop and escalate.',
+    '- Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/design.md, '
+      + '.ultra/ledger/ or the files the checks above run. If a check or a requirement '
+      + 'looks wrong, stop and escalate.',
     '- Change only files inside the scope, and commit your work: '
       + 'evidence from an uncommitted tree never counts.',
     `- Run \`ubp check ${ids}\` until every check above is green, then \`ubp check\` `
@@ -34,6 +34,10 @@ function compile(project, node, state, handoffs) {
     `# Node ${node.id}: ${node.title}`,
     `Milestone ${node.milestone}: ${milestone?.title ?? 'not in .ultra/plan.json'} · node state `
       + state.nodes.find((n) => n.id === node.id).state,
+    '## Project',
+    project.sharedText,
+    '### .ultra/design.md',
+    handoff(project.root, '.ultra/design.md', 'No design written.').text,
     '## Requirements',
     node.covers.map((r) => project.requirementText.get(r) ?? `${r}: not in .ultra/spec.md`)
       .join('\n\n') || 'None.',
@@ -51,16 +55,15 @@ function compile(project, node, state, handoffs) {
   ].join('\n\n') + '\n';
 }
 
-function handoff(root, id) {
-  const relative = `.ultra/records/handoffs/${id}.md`;
+function handoff(root, relative, missing = 'No handoff written.') {
   const { exists, bytes } = readRecord(root, relative);
-  if (!exists) return { text: 'No handoff written.', fromFile: false };
+  if (!exists) return { text: missing, fromFile: false };
   if (!bytes) {
     return { text: 'Not read: not a regular file inside the project.', fromFile: false };
   }
   const text = bytes.toString('utf8').replace(/\r\n/gu, '\n')
     .replace(/^(?:[^\S\n]*\n)+/u, '').trimEnd();
-  return { text: text || 'No handoff written.', fromFile: true };
+  return { text: text || missing, fromFile: true };
 }
 
 function context(project, id, budget) {
@@ -68,7 +71,8 @@ function context(project, id, budget) {
   if (!node) throw new Error(`Unknown node ${id}. Use an id from plan.json.`);
   const state = status(project);
   const handoffs = node.depends.map((dep) => ({ id: dep,
-    ...(project.nodes.some((n) => n.id === dep) ? handoff(project.root, dep)
+    ...(project.nodes.some((n) => n.id === dep)
+      ? handoff(project.root, `.ultra/records/handoffs/${dep}.md`)
       : { text: 'Not a node in .ultra/plan.json.', fromFile: false }) }));
   let brief = compile(project, node, state, handoffs);
   let bytes = Buffer.byteLength(brief);
@@ -87,7 +91,7 @@ function context(project, id, budget) {
   const ok = bytes <= budget;
   const problems = ok ? [] : [problem('brief-over-budget',
     `Node ${id} brief is ${bytes} bytes, exceeding the ${budget} byte budget`,
-    'Split the node so its requirements, checks and rules fit the budget.')];
+    'Shorten .ultra/design.md or split the node so its requirements, checks and rules fit.')];
   return { ok, node: id, bytes, omitted, brief: ok ? brief : null, problems };
 }
 
