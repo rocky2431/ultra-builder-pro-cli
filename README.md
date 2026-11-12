@@ -30,8 +30,17 @@ use for every engine command, regardless of any `ubp` on PATH. No Python runtime
 
 Open the project in Claude Code and invoke `/ultra` (full name `/ultra-builder-pro:ultra`);
 in Codex invoke `$ultra-builder-pro:ultra`. Run `ubp status` to see the current state.
-A project without `.ultra/spec.md` starts with an interview, then a specification, checks and a
-milestone plan.
+A project without `.ultra/spec.md`, empty or with existing code, starts in four steps: survey
+what exists, investigate only the unknowns whose answer changes a requirement, a check or the
+plan, interview the Owner for the rest, and have the Owner confirm the Direction and every
+`Done when` line. Checks and a milestone plan follow. For existing code, the survey records how
+it is built, run and tested, and its test command becomes an invariant every node keeps.
+
+`.ultra/design.md` holds what the project knows: the system, the design decisions in force and
+the investigated facts with their sources. The planner keeps it, writers never edit it, and
+every node brief carries it together with the spec's Direction and Interface. In the progress
+line, `已关闭里程碑 n 项待复核` counts finished work whose checks only need a rerun after a
+commit; `未绿` counts work whose latest check run failed or never ran.
 
 The SessionStart hook prints progress and a reminder to use `ultra` only when
 `.ultra/spec.md` exists, and stays silent inside a drive's writer or reviewer (`UBP_DRIVE`). It does not start work or write project files.

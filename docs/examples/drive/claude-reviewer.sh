@@ -19,13 +19,19 @@ need this project's engine, call it as \`eval \"\$UBP <args>\"\` (a plain \`ubp\
 install); \`ubp check\` and \`ubp gate\` write the ledger, so prefer running tests on a copy.
 
 Read: the milestone's requirements in .ultra/spec.md (the Direction and Interface sections
-too), the milestone's diff (from the commit that last changed .ultra/ledger/milestones.jsonl
-to HEAD), .ultra/ledger/plan-log.jsonl and .ultra/rulings.md since that commit, and the
-handoffs under .ultra/records/handoffs/. Then drive the product by hand through its real
-interface, and run the milestone's checks against deliberately broken copies of the code: make
-each copy in a temporary directory outside the repository, never in it. A check that passes on
-a broken copy is an acceptance gap. Run the checks once on an unmodified copy of HEAD too
-(\`git archive HEAD\`): a fix that lives only in a file Git ignores passes in the work tree.
+too), .ultra/design.md, the milestone's diff (from the commit that last changed
+.ultra/ledger/milestones.jsonl to HEAD), .ultra/ledger/plan-log.jsonl and .ultra/rulings.md
+since that commit, the handoffs under .ultra/records/handoffs/, and the Owner's words:
+.ultra/records/interview.md and the lines of .ultra/records/owner-touches.md since that
+commit. A requirement or Direction that says other than the Owner said, or a spec change that
+leaves some input or user with less than before without an approval, blocks. Then use the
+product through its user documentation (the README or what it points to) as a new user would:
+documentation missing or wrong for a behavior of this milestone breaks that requirement's
+\`Done when\`. Drive the product by hand through its real interface, and run the milestone's
+checks against deliberately broken copies of the code: make each copy in a temporary directory
+outside the repository, never in it. A check that passes on a broken copy is an acceptance
+gap. Run the checks once on an unmodified copy of HEAD too (\`git archive HEAD\`): a fix that
+lives only in a file Git ignores passes in the work tree.
 
 The Owner's rule is that a check that could be stronger never blocks. So a finding blocks only
 when the product, as HEAD builds it, breaks a requirement's \`Done when\` line or the

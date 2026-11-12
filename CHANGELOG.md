@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Start any project, empty or with existing code, in four steps: survey what exists,
+  investigate only the unknowns whose answer changes a requirement, a check or the plan,
+  interview the Owner for the rest, and have the Owner confirm the Direction and every
+  `Done when` line. For existing code, the existing test command becomes an invariant and a
+  characterization check pins a behavior before a node changes it.
+- Add `.ultra/design.md`, the project's current knowledge: `## System`, `## Decisions` and
+  `## Facts`. The planner keeps it and writers never edit it; it is engine-owned, so editing or
+  committing it never stales evidence. `ubp context` puts a `## Project` section in every brief
+  with the spec's shared text (Direction, Interface) and the design, and a brief over budget
+  names the design as a place to shorten.
+- `ubp status` tells `已关闭里程碑 n 项待复核` (stale after a commit while the latest run of
+  every covering check passed; `closed_recheck` in `--json`) apart from `未绿`.
+- `ubp milestone close` refuses an accepting review that is not
+  `.ultra/records/milestones/<id>-review.md` (`review-not-for-milestone`).
+- `ubp drive --json` writes every event line to stderr, so a watcher sees each node finish;
+  stdout holds only the final JSON.
+- The method's milestone review checks the spec against the Owner's recorded words and uses the
+  product through its user documentation, which is now a requirement like any other; the
+  controller reports the status line after every node and gate step; the handling of drive
+  stops and merge refusals moved to `skills/ultra/references/`, read when needed.
+- The engine's line budget is 2050 (Owner, 2026-11-12).
+
 ## [6.0.0] — 2026-11-04
 
 - Start in Claude Code with `/ultra` (full name `/ultra-builder-pro:ultra`),

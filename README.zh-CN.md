@@ -29,7 +29,14 @@ ubp --all --global
 
 在 Claude Code 项目中调用 `/ultra`（完整名称 `/ultra-builder-pro:ultra`）；
 在 Codex 中调用 `$ultra-builder-pro:ultra`。运行 `ubp status` 查看当前状态。没有 `.ultra/spec.md`
-的项目从访谈开始，再形成规格、验收检查和里程碑计划。
+的项目，无论是空目录还是已有代码，都从四步开工：摸清现有情况；只调查答案会改变需求、检查或计划的
+未知问题；其余的问 Owner；由 Owner 确认 Direction 和每条 `Done when`。之后再写验收检查和里程碑
+计划。已有代码库的摸底会记下它怎么构建、运行和测试，并把现有测试命令登记成每个节点都要保持通过的
+不变量。
+
+`.ultra/design.md` 记录项目当前知道的东西：系统现状、当前有效的设计决定，以及调查查清的事实和来源。
+它由规划者维护，写者不改；每份节点简报都会带上它和 spec 的 Direction、Interface。进度行里，
+`已关闭里程碑 n 项待复核` 指提交后只需重跑检查的已完成工作；`未绿` 指最近一次检查失败或从未运行。
 
 SessionStart hook 仅在 `.ultra/spec.md` 存在时打印进度和使用 `ultra` 的提示；
 它不自动启动工作，也不写项目文件。
