@@ -9,9 +9,11 @@
 - 走法：本仓库 `.ultra` 里程碑 M-P6，4 条 REQ（knowledge、status、close、method），检查 `C-engine-p6`、`C-method-p6`，节点 `N-P6-engine`（Codex）、`N-P6-method`（主会话）。提交：`e6e41c0` 合同，`085f959` 先写验收，`0d88c19` 开 M-P6。
 - 先红已确认（2026-11-12）：C-engine、C-engine-p2、C-package、C-release、C-engine-p6、C-method-p6 红，p3/p4/p5 绿。
 - N-P6-method：方法、`skills/ultra/references/{drive,merge}.md`、示例脚本、README、CHANGELOG 已写回；交接 `.ultra/records/handoffs/N-P6-method.md`。SKILL.md 393 行；两版 Skill Creator 校验通过。
-- N-P6-engine：Codex delegation `e9c94e60556f448ea3988cbda7803ddf`，克隆 `/Users/rocky243/Context Engineering/ubp-p6-engine` 分支 `m-p6-engine`；方法提交后才 `ubp merge`（合并门在合并后的树上跑已关闭里程碑的检查）。
-- A7 工作区：`/tmp/a7-shortlink`（删掉 `.ultra` 和样本标记，49 测试绿）、`/tmp/a7-empty`。
-- 未完成：引擎合入并核验（≤2050 行）；`check --all`；A7 两次无头实测；`reviewer` 子代理 xhigh 评审（≤2 轮）；门第 1 步含干净检出和 `retro`；Owner 本人放行；合入 main；release 检查；装进真实 `~/.claude`。不 push、不打 tag。
+- N-P6-engine：Codex（delegation `e9c94e60556f448ea3988cbda7803ddf`）完成，核验通过（范围内、未碰测试和真相文件、引擎 2011/2050 行）；`ubp merge` 通过，合并提交 `453eff4`。Codex 交接注明：drive 不把 `design.md` 放进真相快照（交评审判断）。
+- A7 两次实测已跑，记录在 `.ultra/records/acceptance/a7-start-trials/`：已有代码库产出 System、不变量 `C-suite`、特征检查、带 `Done when` 的规格、gate 通过；新项目走到访谈。局限：Shortlink 原本就有过期功能；克隆保留了旧 `.ultra` 历史。
+- 实测查出方法原有错误：`^ℹ pass [1-9][0-9]*$` 在 Node 22/25 上对“一个测试都没跑”也通过；已改方法和 FORMATS.md 的示例并记裁决；本仓库已关闭里程碑的检查未改（演示时告诉 Owner）。
+- 从合并起记账和状态改用仓库引擎 `node engine/cli.cjs`（A3 要在本仓库实时状态行上看到“待复核”）。
+- 未完成：`check --all`；`reviewer` 子代理 xhigh 评审（≤2 轮，任务书 `/tmp/p6-review-brief.md`）；门第 1 步含干净检出和 `retro`；Owner 本人放行；合入 main；release 检查；装进真实 `~/.claude`。不 push、不打 tag。
 - 结果文件：`RESULT.md`。
 <!-- /current-state -->
 
