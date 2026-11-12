@@ -5,19 +5,20 @@ Requirements are the observable phase exits of `thinking/back-to-essentials-2026
 writes progress by hand.
 
 ## Direction
-North star (Owner, 2026-10-31): one complete product, "集当前所有上下文工程、Harness 工程为一体的一个作品",
-with which one person and Claude Code or Codex carry a project from intent to real, elegant
-software, "有控制、有进度，同时又不失灵活性".
+North star (Owner, 2026-10-31): "集当前所有上下文工程、Harness 工程为一体的一个作品"; "有控制、有进度，
+同时又不失灵活性，把整个事情做得井井有条，而且具有极高的辨识度"; "能够用它产生真实、优雅且非常厉害的工程样本".
+Its two purposes (2026-10-30): "1. 自动化 2. 更好、更精确的意图识别与执行".
 Users: the Owner, who runs several projects at once, "有的项目是在已有代码上去做，有的是全新的"
-(2026-11-11); Claude Code and Codex are the hosts.
-Success: progress is computed, never claimed, so "你不知道具体进度是什么" (2026-10-30) does not
-recur; a change of direction touches only the layer it belongs to, so 1→100 does not
-"越改越乱" (2026-10-31); the Owner is asked only where their judgment is needed.
+(2026-11-11); the hosts are Claude Code and Codex only (the confirmed v6 contract).
+Success (Owner, 2026-10-31): "只要最终能产出一个真正好用的东西就行"; the problems it ends: "你不知道具体
+进度是什么" (2026-10-30) and, from 1 to 100, "越改越乱". Done when the Owner can take it to a first
+real project; that first real sample is the real acceptance (the confirmed v6 contract).
 Abandon: not stated by the Owner.
-Boundary: one method (`ultra`), one engine (`ubp`) and one advisory hook, for Claude Code and
-Codex only; no daemon, runner or Python hook; publishing and installing are the Owner's acts.
-Elegance: the fewest mechanisms that keep progress true; the engine enforces facts, the model
-and the Owner judge.
+Boundary: one method (`ultra`), one engine (`ubp`) and one advisory hook; no daemon, runner or
+Python hook (this repository's v6 product boundary, not the Owner's words); publishing and
+installing are the Owner's acts. Accepted cost (2026-10-31): "它在 0 到 1 阶段可能会比较重，但这是我们
+可以接受的".
+Elegance: not stated by the Owner.
 
 ## REQ-P1-stale Editing one requirement invalidates only what depends on it
 After the text of one requirement in `.ultra/spec.md` changes, `ubp status` shows that
@@ -149,13 +150,14 @@ Done when: closing a milestone with another milestone's accepting review is refu
 The installed `ultra` Skill starts a project without `.ultra/spec.md`, new or with existing
 code, in four steps: survey what exists (for existing code, `## System` in
 `.ultra/design.md`, the existing test command registered as an invariant after a baseline
-run whose red tests are left out of it or fixed by a first cleanup node, and
-characterization checks before an unpinned behavior is changed); investigate only the
-unknowns whose answer changes a requirement, a check or the plan, recording each answer and
-its source in `.ultra/design.md`; interview the Owner for what investigation cannot settle;
-and have the Owner confirm the Direction and every `Done when` line. A behavior an existing
-test pins changes through a requirement whose check takes that test out of the invariant, so
-no node before the change is refused. A project with a spec but no `.ultra/design.md` gets
+run, and characterization checks before an unpinned behavior is changed); investigate only
+the unknowns whose answer changes a requirement, a check or the plan, recording each answer
+and its source in `.ultra/design.md`; interview the Owner for what investigation cannot
+settle; and have the Owner confirm the Direction and every `Done when` line. A test that is
+red now (a red baseline, a test that pins a behavior this work changes, rewritten to the new
+behavior, or a new requirement's test) stays out of the invariant's run, unless a first
+cleanup node fixes a red baseline, so no node is refused for a test a later node turns green.
+A project with a spec but no `.ultra/design.md` gets
 one from a survey, never while a drive runs. The method says who writes and who reads
 `.ultra/design.md`; its escalation covers a fact nobody knows; its milestone review, one
 reference that the Skill's gate and the example reviewer both read, checks the spec against
@@ -167,9 +169,9 @@ handled in a `references/` file the Skill names, keeping `SKILL.md` within 395 l
 Done when: the method covers the four start steps, the upkeep of `.ultra/design.md`, the
 escalation for an unknown fact, the review against the Owner's words, documentation as a
 requirement and progress reports, with drive, merge and review instructions in references
-and `SKILL.md` no longer than 395 lines, and a headless session that changes a behavior an
-existing test pins reaches the milestone gate without a node refused by the invariant
-(contract A6, A7).
+and `SKILL.md` no longer than 395 lines, and a headless session that adds a behavior and
+changes one an existing test pins, following the method's text, reaches the milestone gate
+without a node refused by the invariant (contract A6, A7).
 
 ## REQ-P6-docs The README takes a new user from install to a closed milestone
 `README.md` and `README.zh-CN.md` say how to install for each host, how to start a new or

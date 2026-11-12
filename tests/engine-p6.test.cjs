@@ -328,6 +328,10 @@ test('a project without .ultra/spec.md has not started, and every command says s
   git(root, ['init', '-q', '-b', 'main']);
   git(root, ['config', 'user.name', 'UBP Test']);
   git(root, ['config', 'user.email', 'ubp@example.invalid']);
+  // M-P6 review round 3: a repository without a commit is named as such, not as not started.
+  const empty = run({ root }, ['status']);
+  assert.equal(empty.status, 2, empty.stdout + empty.stderr);
+  assert.ok(empty.stderr.includes(' has no commit. Commit the code first.'), empty.stderr);
   write(root, 'src/app.cjs', 'module.exports = {};\n');
   commitAll(root, 'existing code');
   for (const args of [['status'], ['status', '--json'], ['check'], ['gate'], ['context', 'N-01']]) {

@@ -126,6 +126,29 @@ test('a behavior an existing test pins changes without stalling earlier nodes', 
   assert.ok(row && row.includes('invariant'), row);
 });
 
+test('a test that is red now stays out of the invariant\'s run', () => {
+  // M-P6 review round 3, point 2: a glob invariant also ran each new requirement's red test and
+  // refused every node planned before it; "another file" inside the glob did the same.
+  const method = body(skill());
+  const start = flat(sectionOf(method, '## Start'));
+  for (const want of ['a test that is red now', 'a new requirement\'s test', 'a red baseline',
+    'a directory its glob does not match', 'name prefix', 'git commit --allow-empty']) {
+    assert.ok(start.includes(want), `Start: ${want}`);
+  }
+  assert.ok(!start.includes('(another file'), 'a file inside the glob is still in its run');
+  const tidy = flat(sectionOf(method, '## Keeping it tidy'));
+  assert.ok(tidy.includes('Start step 1'), 'the baseline cleanup node fixes what its tests need');
+});
+
+test('a documentation check and a copied example reviewer keep a drive going', () => {
+  // M-P6 review round 3, point 5: a check whose run names README.md put it off limits to every
+  // drive writer, and a copied claude-reviewer.sh could not find the review guide.
+  const spec = flat(sectionOf(body(skill()), '## Specification and checks'));
+  assert.ok(spec.includes('from inside a test file'), spec);
+  const drive = flat(read(SKILL_DIR, 'references', 'drive.md'));
+  assert.ok(drive.includes('UBP_REVIEW_GUIDE'), 'drive.md names the guide variable');
+});
+
 test('a project with a spec but no design gets one from a survey, never during a drive', () => {
   const method = body(skill());
   const first = flat(method.slice(method.indexOf('1. `ubp status --json`'), method.indexOf('\n2. ')));
@@ -171,6 +194,12 @@ test('the README lists every engine command and the review path close takes', ()
       .map((m) => name(m[1].split(' '))).sort();
     assert.deepEqual(listed, engine, file);
     assert.ok(text.includes('.ultra/records/milestones/<id>-review.md'), `${file}: review path`);
+    // A prerelease is installed from a commit, so the README keeps the published version until
+    // the release; the release (verify:release) fails while it names another one.
+    const pinned = [...text.matchAll(/ultra-builder-pro-cli@(\d[^\s`]*)/gu)].map((m) => m[1]);
+    assert.ok(pinned.length > 0, `${file}: the install line names a version`);
+    const { version } = JSON.parse(read(ROOT, 'package.json'));
+    if (!version.includes('-')) for (const v of pinned) assert.equal(v, version, `${file}: ${v}`);
   }
 });
 
