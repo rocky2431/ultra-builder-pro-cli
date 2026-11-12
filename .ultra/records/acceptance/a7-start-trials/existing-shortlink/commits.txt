@@ -1,0 +1,17 @@
+3a6153a chore(ultra): record M4's first check run: C-readme red, expiry and the suite green
+c62ed39 chore(ultra): start M4, link expiry, on the existing code: spec, checks, plan, gate baseline
+fc5c886 test: pin expiry across a restart and the README's account of link lifetime (M4)
+ .gitattributes                  |   1 +
+ .gitignore                      |   1 +
+ .ultra/checks.json              |  21 ++++++++
+ .ultra/design.md                |  60 +++++++++++++++++++++
+ .ultra/ledger/evidence.jsonl    |   5 ++
+ .ultra/ledger/plan-log.jsonl    |   1 +
+ .ultra/plan.json                |  14 +++++
+ .ultra/records/interview.md     | 112 ++++++++++++++++++++++++++++++++++++++++
+ .ultra/records/owner-touches.md |  12 +++++
+ .ultra/rulings.md               |   8 +++
+ .ultra/spec.md                  |  79 ++++++++++++++++++++++++++++
+ test/docs/readme.test.cjs       |  70 +++++++++++++++++++++++++
+ test/expire-restart.test.cjs    |  36 +++++++++++++
+ 13 files changed, 420 insertions(+)

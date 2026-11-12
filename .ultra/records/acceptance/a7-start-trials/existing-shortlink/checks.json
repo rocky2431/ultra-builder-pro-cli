@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checks": [
+    { "id": "C-readme", "covers": ["REQ-readme"],
+      "run": "node --test --test-reporter=spec test/docs/readme.test.cjs",
+      "timeout_sec": 120, "expect": "^ℹ pass [1-9][0-9]*$" },
+    { "id": "C-expire", "covers": ["REQ-expire"],
+      "run": "node --test --test-reporter=spec test/expire.test.cjs",
+      "timeout_sec": 120, "expect": "^ℹ pass [1-9][0-9]*$" },
+    { "id": "C-expire-restart", "covers": ["REQ-expire"],
+      "run": "node --test --test-reporter=spec test/expire-restart.test.cjs",
+      "timeout_sec": 120, "expect": "^ℹ pass [1-9][0-9]*$" },
+    { "id": "C-journey-m2", "covers": ["REQ-expire-page"],
+      "run": "node --test --test-reporter=spec test/journey-m2.test.cjs",
+      "timeout_sec": 120, "expect": "^ℹ pass [1-9][0-9]*$" },
+    { "id": "C-suite", "covers": [],
+      "run": "node --test --test-reporter=spec test/*.test.cjs",
+      "timeout_sec": 600, "expect": "^ℹ pass [1-9][0-9]*$",
+      "fix": "A change broke behavior the existing suite pins: run `node --test --test-reporter=spec test/*.test.cjs`, read the first failing test and repair the code, never the test, until it passes again." }
+  ]
+}

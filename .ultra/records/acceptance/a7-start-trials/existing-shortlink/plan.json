@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "milestones": [
+    { "id": "M4", "title": "Links that live as long as their creator said",
+      "requirements": ["REQ-expire", "REQ-expire-page", "REQ-readme"],
+      "journey": "C-journey-m2" }
+  ],
+  "nodes": [
+    { "id": "N-readme", "milestone": "M4",
+      "title": "README: start Shortlink and give a link a lifetime",
+      "covers": ["REQ-readme", "REQ-expire", "REQ-expire-page"],
+      "depends": [], "scope": ["README.md"] }
+  ]
+}
