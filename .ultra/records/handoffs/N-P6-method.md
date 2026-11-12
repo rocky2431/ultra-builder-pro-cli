@@ -44,3 +44,34 @@ the headless start trials, A7).
 - Whether a writer actually uses the `## Project` section, and whether a fresh session follows
   the four start steps on an existing codebase: A7 trials and the milestone review judge it.
 - The README and CHANGELOG wording.
+
+## Rework after the gate review, round 1 (2026-11-12)
+
+The round-1 review (`.ultra/records/milestones/M-P6-review-1.md`) accepted with no blocking
+finding. The controller fixed the method items under "What must be said to the Owner" before
+asking the Owner, so the gate starts again at step 1 with a full review:
+
+- Start step 1: run the existing tests first; a red or flaky baseline goes under `## Facts`
+  and is either the first node or left out of the invariant; `timeout_sec` above the
+  measured run (item 5). A behavior an existing test pins changes through a requirement whose
+  acceptance author rewrites that test, committed red (item 1).
+- Session step 1: a spec without `.ultra/design.md` gets one from a survey before any node
+  (item 4).
+- `待复核` explained as "last passed and went stale" in the method and both READMEs (item 3).
+- `expect` example `^\s*✔ <name>` (indented inside `describe`) and other runners, in the
+  method and `engine/FORMATS.md`; verified on Node 25.7.0 with a nested test (item 6).
+- `references/drive.md`: in Claude Code, stderr to `.ultra/.runtime/drive.err` watched with
+  the Monitor tool; a probe in this host delivered each `drive:` line as its own
+  notification while the writer was still running, and the monitor expired as documented
+  (item 2). The `all-done` stop has a bullet (item 9).
+- A check never reads `.ultra/design.md` either; the zh README says the hook is silent inside
+  a drive (item 9).
+- To stay within 395 lines and keep one place per policy, the Skill's drive and merge
+  paragraphs now only route to the references (the scope, commit and branch rules live
+  there), and a repeated "every brief carries" sentence is gone. SKILL.md: 393 lines.
+
+Not done (the Owner decides): this repository's own Direction, design and per-test
+`expect` (ruling 2026-11-12); one `references/review.md` for the three copies of the review
+instructions, moving the status table's drive row into `drive.md`, and `milestone close`
+without `--review` (each changes a closed milestone's acceptance or the CLI); the package
+version (pinned at 6.0.0 by `tests/v6-package.test.cjs`).

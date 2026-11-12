@@ -11,7 +11,11 @@ Give every node a `scope` that holds no check file, commit everything, and start
 completion notice: a drive runs for many writers, and a foreground call is bounded by the
 host's command timeout (at most 10 minutes in Claude Code).
 
-- In Claude Code, run it with Bash `run_in_background`.
+- In Claude Code, run `mkdir -p .ultra/.runtime`, start the drive with Bash
+  `run_in_background` and `2> .ultra/.runtime/drive.err`, and watch that file with the
+  Monitor tool: `tail -n +1 -F .ultra/.runtime/drive.err | grep --line-buffered '^drive: '`
+  turns each event line into a notification, so you can relay it at once. A monitor ends at
+  its timeout (at most 30 minutes): re-arm it while the drive runs.
 - On a host without background commands, run `mkdir -p .ultra/.runtime`, start
   `nohup <drive command> > .ultra/.runtime/drive.json 2> .ultra/.runtime/drive.err &`, tell
   the Owner it is running and stop: a later session sees it in `ubp status` and, once `drive`
@@ -60,6 +64,8 @@ drive does not), and act on `stop`:
   `reviewer-changed-tree`: fix the reviewer command and restore what it changed.
 - `scope-missing`, `plan-gate`, `brief-over-budget`, `checks-not-green`, `blocked`: the
   matching planner step.
+- `all-done`: every milestone is closed; report the status line to the Owner and ask whether
+  to plan another milestone.
 - `drive-running`: another drive holds this tree; this one started nothing. Follow the
   status table's first row. When `ubp status` shows no `drive`, the lock holds no live pid
   (a drive killed while taking it): remove `.ultra/.runtime/drive.lock` and start the drive

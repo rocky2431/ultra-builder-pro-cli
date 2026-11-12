@@ -39,8 +39,9 @@ it is built, run and tested, and its test command becomes an invariant every nod
 `.ultra/design.md` holds what the project knows: the system, the design decisions in force and
 the investigated facts with their sources. The planner keeps it, writers never edit it, and
 every node brief carries it together with the spec's Direction and Interface. In the progress
-line, `已关闭里程碑 n 项待复核` counts finished work whose checks only need a rerun after a
-commit; `未绿` counts work whose latest check run failed or never ran.
+line, `已关闭里程碑 n 项待复核` counts finished work whose checks last passed and went stale (after
+a code commit a rerun settles it; after a requirement or check edit its node may need rework);
+`未绿` counts work whose latest check run failed or never ran.
 
 The SessionStart hook prints progress and a reminder to use `ultra` only when
 `.ultra/spec.md` exists, and stays silent inside a drive's writer or reviewer (`UBP_DRIVE`). It does not start work or write project files.

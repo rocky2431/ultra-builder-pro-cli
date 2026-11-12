@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   investigate only the unknowns whose answer changes a requirement, a check or the plan,
   interview the Owner for the rest, and have the Owner confirm the Direction and every
   `Done when` line. For existing code, the existing test command becomes an invariant and a
-  characterization check pins a behavior before a node changes it.
+  characterization check pins a behavior before a node changes it; a behavior an existing
+  test pins changes through a requirement whose acceptance rewrites that test. A project that
+  has a spec but no `.ultra/design.md` gets one from a survey before its next node.
 - Add `.ultra/design.md`, the project's current knowledge: `## System`, `## Decisions` and
   `## Facts`. The planner keeps it and writers never edit it; it is engine-owned, so editing or
   committing it never stales evidence. `ubp context` puts a `## Project` section in every brief
@@ -25,8 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stdout holds only the final JSON.
 - The method's milestone review checks the spec against the Owner's recorded words and uses the
   product through its user documentation, which is now a requirement like any other; the
-  controller reports the status line after every node and gate step; the handling of drive
-  stops and merge refusals moved to `skills/ultra/references/`, read when needed.
+  controller reports the status line after every node and gate step (in Claude Code, a
+  drive's event lines reach it through the Monitor tool); the handling of drive stops and
+  merge refusals moved to `skills/ultra/references/`, read when needed.
 - A check's `expect` now matches a test's `✔ <name>` line in the method and
   `engine/FORMATS.md`: `node --test` reports a file or a name filter that ran no test as one
   passing test (Node 22 and 25), so the old `pass [1-9]` example could not tell that nothing

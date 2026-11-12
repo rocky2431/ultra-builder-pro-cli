@@ -16,6 +16,7 @@ exit codes: `__UBP_ENGINE_FORMATS__`.
 ## Every session starts the same way
 
 1. `ubp status --json`. If `.ultra/spec.md` does not exist, go to "Start" (new or existing code).
+   If it exists but `.ultra/design.md` does not, write the design (Start step 1) before any node.
 2. `git log --oneline -10` and `git status --short`.
 3. When the current milestone has a `journey`, run it once: `ubp check <journey>`. A red
    journey at the start of a session is the first thing to fix.
@@ -35,8 +36,9 @@ exit codes: `__UBP_ENGINE_FORMATS__`.
 
 Whenever you report progress to the Owner, paste the line `ubp status` printed. Report it
 unasked after every node and every gate step, and relay each line a running drive prints: an
-Owner who has to ask "what is happening" is a failure of this rule. `已关闭里程碑 n 项待复核`
-means finished work that only needs its checks rerun; `未绿` means a check failed or never ran.
+Owner who has to ask "what is happening" is a failure of this rule. `待复核`: finished work
+whose checks last passed and went stale (after a code commit a rerun settles it; after a
+requirement or check edit its node may need rework); `未绿`: a check failed or never ran.
 
 ## Roles
 
@@ -46,11 +48,10 @@ context: a new subagent or delegated session that sees the node brief and the re
 not your conversation.
 
 Per node, the default is one fresh writer followed by your verification (Node loop step 4):
-no per-node explorer, tester or second reviewer. In a measured comparison on nine nodes,
-those extra roles cost three to five times the tokens, scored no higher on hidden checks, and
-found one defect between them. Add a read, a review or a test run to a node only when you
-judge that node risky. A reviewer from another vendor, when one is available, reviews the
-whole branch at the milestone gate.
+no per-node explorer, tester or second reviewer (measured on nine nodes: three to five times
+the tokens, no higher score on hidden checks, one defect found between them). Add a read, a
+review or a test run only to a node you judge risky. A reviewer from another vendor, when
+available, reviews the whole branch at the milestone gate.
 
 ## Start (new or existing project)
 
@@ -60,10 +61,15 @@ in their own words. Four steps, in order; each writes a file, and the next step 
 1. **Survey (planner), always.** Read what is there: `git log`, the layout, how it is built,
    run and tested, its tests and its docs. Write `.ultra/design.md` (see "Project knowledge"):
    its `## System` says how the system is built, run and tested today. For existing code, also:
-   - register the existing test command as an invariant (a check with `covers: []` and a
-     `fix`, see "Keeping it tidy"), so every node keeps what already passes;
+   - run the existing tests, then register their command as an invariant (a check with
+     `covers: []`, a `fix` and a `timeout_sec` above the measured run, see "Keeping it
+     tidy"), so every node keeps what already passes. Tests already red or flaky go under
+     `## Facts`: fixing them is the first node, or the invariant runs only what passes;
    - before a node changes a behavior no test pins, add a characterization check that pins
      what the code does today, committed green, then change it through a requirement;
+   - a behavior an existing test pins changes through a requirement too: the acceptance
+     author rewrites that test to the new behavior with the requirement's checks, committed
+     red before the node (L1 modify; a reduction only when someone gets less);
    - requirements cover what this work adds or changes, not the whole existing system;
      the invariant and the characterization checks keep the rest.
 2. **Investigate (planner), only what decides something.** List the unknowns whose answer
@@ -132,13 +138,14 @@ Checks (acceptance author, never the writer):
 - Anything a check needs from the code (start command, port and data variables, a ready line,
   markers in a page) is written in the spec as interface (L2), so a writer can meet it.
 - `expect` must prove the tests ran: match the line of a test the check relies on, for example
-  `^✔ an expired link answers 410` with `node --test --test-reporter=spec`. A pass count is
-  not enough: a file or a name filter that ran no test still prints `ℹ pass 1`.
+  `^\s*✔ an expired link answers 410` with `node --test --test-reporter=spec` (a test inside
+  `describe` is indented), or another runner's line for a named test. A pass count is not
+  enough: a file or a name filter that ran no test still prints `ℹ pass 1`.
 - Commit the test files before any implementation and run `ubp check`: every new check must be
   red or unknown. A check that is green before the code exists proves nothing (a
   characterization check of existing code is the one exception: it pins what already works).
 - For each key requirement, break the finished implementation once and see its check fail.
-- A check never reads `.ultra/records/`.
+- A check never reads `.ultra/records/` or `.ultra/design.md`.
 
 ## Plan (planner)
 
@@ -196,13 +203,9 @@ previous writer's completion notice has arrived: a progress note, a `node done` 
 quiet log is not completion, and a writer still running will commit whatever it finds in the
 tree. Parallel writers: see "Parallel writers and the merge gate".
 
-When the Owner asks for an unattended run, give every node a `scope` that holds no check
-file, commit everything, and start `ubp drive --writer <cmd> --reviewer <cmd> --json` in the
-background (in Claude Code, Bash `run_in_background`), then wait for its completion notice:
-a foreground call is bounded by the host's command timeout. Read `references/drive.md`
-before the first drive: how to start it on a host without background commands, the example
-writer and reviewer commands, how to relay its progress lines (with `--json`, stderr has one
-line per event), and what to do for each `stop` it returns, `drive-running` included.
+When the Owner asks for an unattended run, read `references/drive.md` first: how to start
+`ubp drive` in the background (in Claude Code, Bash `run_in_background`), relay each of its
+progress lines to the Owner as it arrives, and handle every `stop`, `drive-running` included.
 
 ## Escalation (RESULT §3.2)
 
@@ -321,8 +324,7 @@ the new design makes a finished node's code wrong without failing a check, plan 
 that change instead of editing the code inside another node's scope.
 
 Interface details that concern one requirement go in that requirement's block, so changing
-them stales only its nodes. Every brief carries the shared text and `.ultra/design.md`, so a
-changed convention or decision reaches the next writer without being repeated in its mission.
+them stales only its nodes.
 
 ## Keeping it tidy (cleaner)
 
@@ -358,12 +360,9 @@ The default is one writer. Run two in parallel only when the plan's frontier hol
 two ready nodes whose scopes do not overlap and each is a substantial piece of work; reads,
 reviews and test runs may run in parallel at any time.
 
-Each parallel writer gets its own branch and work tree, runs its checks and `ubp node done`
-there, and commits its ledger lines with its code; a branch never changes `spec.md`,
-`checks.json`, `plan.json` or `design.md`, and never approves or closes. Merge each branch
-with `ubp merge <branch> --expect-head "$(git rev-parse HEAD)"`, one at a time, after
-verifying its commits as in Node loop step 4. Read `references/merge.md` before the first
-merge: the setup it needs, what the gate checks, and what to do for each refusal.
+Each parallel writer gets its own branch and work tree; merge each branch with `ubp merge`,
+one at a time, after verifying its commits as in Node loop step 4. Read `references/merge.md`
+before the first merge: what a branch may change, the setup, the gate and every refusal.
 
 ## Owner touches
 

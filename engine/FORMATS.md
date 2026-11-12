@@ -136,7 +136,7 @@ node brief as a handoff is read (see "Node brief").
   "checks": [
     { "id": "C-add", "covers": ["REQ-001"],
       "run": "node --test --test-reporter=spec test/add.test.js",
-      "timeout_sec": 120, "expect": "^✔ adds an item" }
+      "timeout_sec": 120, "expect": "^\\s*✔ adds an item" }
   ]
 }
 ```
@@ -153,8 +153,9 @@ node brief as a handoff is read (see "Node brief").
 - `expect`: required, non-empty regular expression source (JavaScript, flags `mu`) that
   does not match the empty string (`^`, `x*` and `(?:)` are malformed). A zero exit counts
   as a pass only when the output tail matches it. It is the acceptance author's statement
-  of what proves that the check really ran, for example `^✔ <test name>`, the spec
-  reporter's line for a test the check relies on. A pass count such as `pass [1-9]` does
+  of what proves that the check really ran, for example `^\s*✔ <test name>`, the spec
+  reporter's line for a test the check relies on (indented inside `describe`), or another
+  runner's line for a named test. A pass count such as `pass [1-9]` does
   not prove it: `node --test` (checked on Node 22.21.0 and 25.7.0) reports a file or a
   name filter that ran no test as one passing test.
 
