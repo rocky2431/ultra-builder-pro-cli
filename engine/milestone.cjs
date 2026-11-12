@@ -26,7 +26,7 @@ function reviewVerdict(bytes, requireReviewer = false) {
     ? verdicts[0].slice(9) : null;
 }
 
-function readReview(root, relative, add) {
+function readReview(root, id, relative, add) {
   const { bytes } = readRecord(root, relative);
   if (!bytes) {
     add('review-missing', `${relative} is not a regular file`,
@@ -36,6 +36,9 @@ function readReview(root, relative, add) {
   if (reviewVerdict(bytes) !== 'accept') {
     add('review-not-accepted', `${relative} does not hold exactly one accepting verdict`,
       'Have the reviewer write exactly one Verdict: accept line after accepting the review.');
+  } else if (relative !== `.ultra/records/milestones/${id}-review.md`) {
+    add('review-not-for-milestone', `${relative} is not the review for ${id}`,
+      `Use .ultra/records/milestones/${id}-review.md for this milestone.`);
   }
   return { path: relative, sha256: hash(bytes) };
 }
@@ -74,7 +77,7 @@ function recordClosure(project, id, opts) {
       'Run the journey check on clean, current code.');
   }
   problems.push(...invariantProblems(state));
-  const review = readReview(project.root, relative, add);
+  const review = readReview(project.root, id, relative, add);
   if (!problems.length) {
     append(project.root, 'milestones', { v: 1, milestone: id, code: project.code,
       reqs: Object.fromEntries(milestone.requirements.map((r) => [r, project.reqs.get(r)])),

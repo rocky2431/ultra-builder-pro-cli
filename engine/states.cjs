@@ -75,7 +75,7 @@ function nodeStates(project) {
   return project.nodes.map((n) => nodeState(n.id));
 }
 
-function milestoneProgress(project, requirements, nodes, invariants) {
+function milestoneProgress(project, requirements, nodes, invariants, evidence) {
   const closed = new Set(project.closures.map((c) => c.milestone));
   const current = project.milestones.find((m) => !closed.has(m.id)) || project.milestones.at(-1);
   const currentReqs = requirements.filter((r) => current?.requirements.includes(r.id));
@@ -97,16 +97,19 @@ function milestoneProgress(project, requirements, nodes, invariants) {
   else if (current && ownNodes.every((n) => n.state === 'done')) next = '里程碑门';
   const closedIds = new Set(project.milestones.filter((m) => closed.has(m.id)
     && m.id !== current?.id).flatMap((m) => m.requirements));
-  const closed_not_green = requirements.filter((r) => closedIds.has(r.id)
-    && r.state !== 'green').length;
+  const notGreen = requirements.filter((r) => closedIds.has(r.id) && r.state !== 'green');
+  const closed_recheck = notGreen.filter((r) => r.state === 'stale'
+    && r.checks.every((c) => evidence.get(c.id)?.outcome === 'pass')).length;
+  const closed_not_green = notGreen.length - closed_recheck;
   const lastClosure = project.closures.reduce((at, record) => record.at > at ? record.at : at, '');
   const plan_changes = project.plans.filter((p) => ['change', 'removed'].includes(p.type)
     && p.at > lastClosure).length;
-  return { milestone: current?.id ?? null, counts, next, closed_not_green, plan_changes };
+  return { milestone: current?.id ?? null, counts, next,
+    closed_not_green, closed_recheck, plan_changes };
 }
 
 function progressLine(progress, gate, dirty, invariants, drive) {
-  const { milestone, counts, next, plan_changes, closed_not_green } = progress;
+  const { milestone, counts, next, plan_changes, closed_not_green, closed_recheck } = progress;
   let line = `${milestone ?? '无'} · ${counts.green}/${counts.total} 绿`;
   for (const [key, label] of [['red', '红'], ['stale', '过期'], ['unknown', '未知'],
     ['uncovered', '未覆盖']]) {
@@ -116,6 +119,7 @@ function progressLine(progress, gate, dirty, invariants, drive) {
   const notGreen = invariants.filter((i) => i.state !== 'green').length;
   if (notGreen) line += ` · 不变量 ${notGreen} 未绿`;
   if (closed_not_green) line += ` · 已关闭里程碑 ${closed_not_green} 项未绿`;
+  if (closed_recheck) line += ` · 已关闭里程碑 ${closed_recheck} 项待复核`;
   if (dirty) line += ' · 工作区未提交';
   if (gate !== 'pass') {
     line += gate === 'fail' ? ' · 计划门未通过' : ' · 计划门待重跑';
@@ -132,7 +136,7 @@ function status(project) {
   });
   const requirements = requirementStates(project, evidence);
   const nodes = nodeStates(project);
-  const progress = milestoneProgress(project, requirements, nodes, invariants);
+  const progress = milestoneProgress(project, requirements, nodes, invariants, evidence);
   const problems = planProblems(project);
   let gate = 'pass';
   if (problems.length) gate = 'fail';
