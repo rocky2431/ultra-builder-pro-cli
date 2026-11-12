@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "C-suite",
+      "covers": [],
+      "run": "node --test --test-reporter=spec --test-skip-pattern='^(REQ-total-visits|REQ-deleted-410|M4 journey):' test/*.test.cjs",
+      "timeout_sec": 120,
+      "expect": "^\\s*✔ REQ-page: paste a link, get a short link, open it, see the count go up[\\s\\S]*^ℹ fail 0$",
+      "fix": "Run `npm test`, read the first ✖ test outside this milestone's names, and change src/ so that test passes again; never edit an existing test file or test/helpers.cjs (escalate if one looks wrong)."
+    },
+    {
+      "id": "C-no-deps",
+      "covers": [],
+      "run": "node -e \"const p = require('./package.json'); const d = Object.keys({ ...p.dependencies, ...p.devDependencies, ...p.optionalDependencies, ...p.peerDependencies }); if (d.length) { console.error('npm dependencies: ' + d.join(', ')); process.exit(1); } console.log('package.json declares no npm dependency');\"",
+      "timeout_sec": 30,
+      "expect": "^package\\.json declares no npm dependency$",
+      "fix": "Remove the dependency from package.json and do the work with Node's built-in modules; if that cannot be done, escalate instead of adding one."
+    },
+    {
+      "id": "C-total-visits",
+      "covers": ["REQ-total-visits"],
+      "run": "node --test --test-reporter=spec test/total-visits.test.cjs",
+      "timeout_sec": 60,
+      "expect": "^\\s*✔ REQ-total-visits: the top of the page shows the sum of the visits of every listed link[\\s\\S]*^\\s*✔ REQ-total-visits: an expired link's visits count, a refused or deleted one's do not"
+    },
+    {
+      "id": "C-deleted-410",
+      "covers": ["REQ-deleted-410"],
+      "run": "node --test --test-reporter=spec test/deleted-410.test.cjs",
+      "timeout_sec": 60,
+      "expect": "^\\s*✔ REQ-deleted-410: a deleted short link answers 410 with a page saying 已删除[\\s\\S]*^\\s*✔ REQ-deleted-410: a deleted link still answers 410 after the server restarts[\\s\\S]*^\\s*✔ REQ-deleted-410: a link deleted after it expired says 已删除"
+    },
+    {
+      "id": "C-journey-m4",
+      "covers": ["REQ-deleted-410"],
+      "run": "node --test --test-reporter=spec test/journey-m4.test.cjs",
+      "timeout_sec": 60,
+      "expect": "^\\s*✔ M4 journey: the page totals every visit, and a deleted link says 已删除"
+    }
+  ]
+}

@@ -55,4 +55,8 @@
   return `EPERM` (engine code ignores `ESRCH` and `EPERM`).
 - Open: why `tests/engine-p5.test.cjs` "an interrupted drive stops its writer and the
   writer's check" failed once in about 27 full runs (the inner check alive 4 s after the
-  drive exited); an instrumented loop is investigating it (2026-11-12).
+  drive exited; that suite took 556 s instead of about 395 s). Not reproduced under CPU load,
+  two concurrent full suites twice, or about 950 targeted rounds on six workers; `gone()` now
+  prints the process's `ps` line when it gives up (2026-11-12).
+- A glob that matches no test file gives `ℹ pass 0` and exit 0 under `node --test`
+  (A7 round 2, Node 25.7.0, 2026-11-12).

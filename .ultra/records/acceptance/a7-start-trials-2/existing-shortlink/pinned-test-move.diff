@@ -1,0 +1,55 @@
+commit 1851e6b2d93d5c94a9911374cd8e39794ec4593e
+Author: rocky2431 <131173621+rocky2431@users.noreply.github.com>
+Date:   Thu Nov 12 11:06:10 2026 -0800
+
+    M4 acceptance tests, red before implementation
+    
+    Total visits at the top of / (C-total-visits), a deleted short link
+    answers 410 已删除 (C-deleted-410), and the M4 journey (C-journey-m4).
+    The old pin that a deleted short link answers 404 moves out of
+    test/delete.test.cjs into the 410 check; two characterization tests
+    of what must not change join the suite.
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+diff --git a/test/delete.test.cjs b/test/delete.test.cjs
+index ee72653..95bbf0f 100644
+--- a/test/delete.test.cjs
++++ b/test/delete.test.cjs
+@@ -15,7 +15,9 @@ async function remove(base, code) {
+   return { status: res.status, text };
+ }
+ 
+-test('REQ-delete: a deleted link leaves the list and its short link answers 404', async (t) => {
++// M4: what the deleted short link answers (it was 404 here) moved to test/deleted-410.test.cjs,
++// rewritten to 410 已删除 (check C-deleted-410).
++test('REQ-delete: a deleted link leaves the list and other links still work', async (t) => {
+   const { base } = await start(t);
+   const keep = (await createLink(base, { url: 'https://example.com/keep' })).body;
+   const drop = (await createLink(base, { url: 'https://example.com/drop' })).body;
+@@ -23,10 +25,24 @@ test('REQ-delete: a deleted link leaves the list and its short link answers 404'
+   assert.equal(res.status, 204);
+   assert.equal(res.text, '', 'no body');
+   assert.deepEqual((await list(base)).body.map((l) => l.code), [keep.code]);
+-  assert.equal((await visit(base, drop.code)).status, 404);
++  assert.notEqual((await visit(base, drop.code)).status, 302, 'the deleted link no longer redirects');
+   assert.equal((await visit(base, keep.code)).status, 302, 'other links still work');
+ });
+ 
++// Added with M4 (characterization of what must not change): the JSON API does not know a
++// deleted code, on lookup and on a second delete.
++test('REQ-delete: the API answers 404 for a deleted code', async (t) => {
++  const { base } = await start(t);
++  const a = (await createLink(base, { url: 'https://example.com/a' })).body;
++  assert.equal((await remove(base, a.code)).status, 204);
++  const lookup = await fetch(`${base}/api/links/${a.code}`);
++  assert.equal(lookup.status, 404);
++  assert.deepEqual(await lookup.json(), { error: NO_SUCH });
++  const again = await remove(base, a.code);
++  assert.equal(again.status, 404);
++  assert.deepEqual(JSON.parse(again.text), { error: NO_SUCH });
++});
++
+ test('REQ-delete: the deletion is saved before the answer', async (t) => {
+   const first = await start(t);
+   const a = (await createLink(first.base, { url: 'https://example.com/a' })).body;
