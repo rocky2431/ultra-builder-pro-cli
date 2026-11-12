@@ -13,7 +13,9 @@
 - A7 两次实测已跑，记录在 `.ultra/records/acceptance/a7-start-trials/`：已有代码库产出 System、不变量 `C-suite`、特征检查、带 `Done when` 的规格、gate 通过；新项目走到访谈。局限：Shortlink 原本就有过期功能；克隆保留了旧 `.ultra` 历史。
 - 实测查出方法原有错误：`^ℹ pass [1-9][0-9]*$` 在 Node 22/25 上对“一个测试都没跑”也通过；已改方法和 FORMATS.md 的示例并记裁决；本仓库已关闭里程碑的检查未改（演示时告诉 Owner）。
 - 从合并起记账和状态改用仓库引擎 `node engine/cli.cjs`（A3 要在本仓库实时状态行上看到“待复核”）。
-- 未完成：`check --all`；`reviewer` 子代理 xhigh 评审（≤2 轮，任务书 `/tmp/p6-review-brief.md`）；门第 1 步含干净检出和 `retro`；Owner 本人放行；合入 main；release 检查；装进真实 `~/.claude`。不 push、不打 tag。
+- `check --all`（合并后、仓库引擎）9/9 绿，`8aeead6`。第 1 轮评审：accept、无阻断，存为 `.ultra/records/milestones/M-P6-review-1.md`；其中给 Owner 的方法缺口（改已有测试固定的行为、红/慢的基线、已有 spec 无 design、`待复核` 措辞、`^\s*✔`、Claude Code 用 Monitor 转发 drive、`all-done` 等）已在门口修掉，所以门从第 1 步重来、第 2 轮做完整评审（合同上限 2 轮）。
+- 交 Owner 决定、不在本次做：本仓库自己补 Direction/design/逐测试 `expect`；`references/review.md` 合并三份评审说明、状态表 drive 行挪进 drive.md、`milestone close` 去掉 `--review`（都要改已关闭验收或 CLI）；版本号（`tests/v6-package.test.cjs` 钉在 6.0.0）。
+- 未完成：`check --all`；门第 1 步干净检出和 `retro`；第 2 轮评审；演示；Owner 本人放行；合入 main；release 检查；装进真实 `~/.claude`。不 push、不打 tag。
 - 结果文件：`RESULT.md`。
 <!-- /current-state -->
 
