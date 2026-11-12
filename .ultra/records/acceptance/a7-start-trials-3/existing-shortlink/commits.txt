@@ -1,0 +1,9 @@
+8062a9e N-deleted verified: handoff, rulings, evidence, completion; design folds the deleted-code store
+12f2187 N-deleted: a deleted short link answers 410 已删除
+dd6a63a N-total verified: handoff, ruling, evidence, completion; design folds the total's place
+8e0f4b6 N-total: show the total visit count at the top of the page
+38d165d design: the suite holds 50 tests
+07b05d3 Record M4 baseline check evidence
+e438dc2 M4 spec, checks, plan, design and records; plan gate baseline
+b0f30af M4 acceptance tests (red) and a deletion characterization test
+cbfa998 Shortlink as it is today
