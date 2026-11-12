@@ -28,7 +28,10 @@ The writer command hands an agent `$UBP_BRIEF` and tells it to call the engine a
 `eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Headless Claude
 Code examples are `docs/examples/drive/claude-writer.sh` and `claude-reviewer.sh` in the
 ultra-builder-pro-cli package and repository; `--writer` takes a shell command line, so quote
-a path that holds a space (`--writer "'<path>'"`).
+a path that holds a space (`--writer "'<path>'"`). The example reviewer reads its instructions
+from `skills/ultra/references/review.md` next to it; a copy placed elsewhere needs
+`UBP_REVIEW_GUIDE` set to a `review.md` it can read, such as the one in this directory of the
+installed Skill, or the drive stops with `review-invalid`.
 
 ## Reporting progress
 

@@ -126,3 +126,28 @@ first (`45ef203`), then:
   changes a pinned Shortlink behavior judges it.
 - The rendered prompt of `claude-reviewer.sh` (checked by hand: the guide follows the
   mission lines).
+
+## Rework after the gate, round 3 (2026-11-12)
+
+- Start step 1 has one rule for every test that is red now (a new requirement's test, a
+  pinned test rewritten to the new behavior, a red baseline): it stays out of the invariant's
+  run, in a directory the glob does not match or behind the runner's skip filter on a name
+  prefix, unless the milestone's first node is a cleanup node that fixes a red baseline. It
+  replaces the two clauses that round 3 showed still stall: a new requirement's red test under
+  `test/` joined the glob invariant and refused every earlier node.
+- Correction to round 2's "moving the test to another file works with any runner": only to a
+  file outside the invariant's glob; inside it, the stall stays (round 3, reproduced under drive).
+- The "a new behavior" row of Changes after 0→1 names the same rule; the cleaner's "never a
+  large refactor" leaves room for the baseline cleanup node; an empty directory's first commit
+  is `git commit --allow-empty`.
+- Specification: a documentation check reads the README from inside a test file, since a file
+  a check's `run` names is off limits to drive writers (`check-touched`).
+- The status table's drive row now says to change no file until "A drive in the status" says
+  the lock is left over (it may remove the lock).
+- `references/drive.md` names `UBP_REVIEW_GUIDE` for a copied example reviewer.
+- README (both), CHANGELOG: the same rule. SKILL.md: 384 lines.
+
+## Pinned by no check (round 3)
+
+- Whether a fresh session follows the red-test rule when it adds a behavior and changes a
+  pinned one: the A7 rerun of the existing-codebase trial judges it.

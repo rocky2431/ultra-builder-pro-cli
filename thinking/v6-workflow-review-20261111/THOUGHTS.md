@@ -3,21 +3,14 @@
 ## Current position
 
 <!-- current-state -->
-- 问题：Owner 2026-11-11 要求换视角重新评审 v6 整个流程，并以之前遇到的情况为依据；评审完再决定改不改、怎么改。
-- 起因：Owner 先问 spec、文档和 research 环节；“research”被语音识别成 “architecture”，上一轮回答顺着 architecture 查，偏离了原问题。Owner 因此怀疑其他地方也有问题。
-- 阶段：执行合同（`RESULT.md`“执行合同”）。状态：active。Owner 2026-11-12：“确认，确认”（含上限 2050、门后装进 `~/.claude`）。
-- 走法：本仓库 `.ultra` 里程碑 M-P6，4 条 REQ（knowledge、status、close、method），检查 `C-engine-p6`、`C-method-p6`，节点 `N-P6-engine`（Codex）、`N-P6-method`（主会话）。提交：`e6e41c0` 合同，`085f959` 先写验收，`0d88c19` 开 M-P6。
-- 先红已确认（2026-11-12）：C-engine、C-engine-p2、C-package、C-release、C-engine-p6、C-method-p6 红，p3/p4/p5 绿。
-- N-P6-method：方法、`skills/ultra/references/{drive,merge}.md`、示例脚本、README、CHANGELOG 已写回；交接 `.ultra/records/handoffs/N-P6-method.md`。SKILL.md 393 行；两版 Skill Creator 校验通过。
-- N-P6-engine：Codex（delegation `e9c94e60556f448ea3988cbda7803ddf`）完成，核验通过（范围内、未碰测试和真相文件、引擎 2011/2050 行）；`ubp merge` 通过，合并提交 `453eff4`。Codex 交接注明：drive 不把 `design.md` 放进真相快照（交评审判断）。
-- A7 两次实测已跑，记录在 `.ultra/records/acceptance/a7-start-trials/`：已有代码库产出 System、不变量 `C-suite`、特征检查、带 `Done when` 的规格、gate 通过；新项目走到访谈。局限：Shortlink 原本就有过期功能；克隆保留了旧 `.ultra` 历史。
-- 实测查出方法原有错误：`^ℹ pass [1-9][0-9]*$` 在 Node 22/25 上对“一个测试都没跑”也通过；已改方法和 FORMATS.md 的示例并记裁决；本仓库已关闭里程碑的检查未改（演示时告诉 Owner）。
-- 从合并起记账和状态改用仓库引擎 `node engine/cli.cjs`（A3 要在本仓库实时状态行上看到“待复核”）。
-- 第 1 轮评审 accept（`M-P6-review-1.md`），门口修过一次（`d66f091`）；第 2 轮评审 accept（`M-P6-review.md`，`62a180b`），但查出 `d66f091` 引入的回归：被现有测试钉住的行为改红后留在不变量里，前面所有节点被拒。演示 `M-P6-demo.md`（`a814f6c`）。
-- Owner 2026-11-12 门第 4 步：“先修 准确地说，全部修复完成了之后，我才会去做测试”。按“全部”做：D1–D8、D2 原因、版本 6.1.0-rc.0、验收缺口、`references/review.md`、锁处理挪进 drive.md、本仓库 Direction（起草待确认）/design/逐测试 `expect`、REQ-P6-docs、A7 重测（含改钉住行为的一次）、第 3 轮评审。`close` 去掉 `--review` 不做（推翻 REQ-P6-close），演示时说明。裁决见 `.ultra/rulings.md` 2026-11-12 末尾 8 行。
-- D2（C-release 干净检出红一次）：CPU 压测、两套并发两轮、采样均未复现，原因未知；正在 `/tmp/ubp-p6-clean` 用插桩的 `gone()` 六路循环（后台 `babc2scnc`，日志 `/tmp/ubp-p6-gone.log`）。
-- 验收已写（先红）：engine-p6 新增 5 条（4 条缺口在 HEAD 绿、6 个坏副本各被抓住；未开工那条红）；method-p6 新增 6 条红；C-package 3 条按新位置改写后红。
-- 未完成：提交验收并 `ubp check` 确认先红；方法（SKILL.md、drive.md、新 review.md、示例评审、README×2、CHANGELOG、版本号、交接 D8 更正）；Codex 写 N-P6-engine 未开工提示；本仓库 `design.md`；D2；A7 重测；门第 1 步、第 3 轮评审、演示、Owner 放行；合入 main；release 检查；装进 `~/.claude`。不 push、不打 tag。
+- 问题：Owner 2026-11-11 要求换视角重新评审 v6 整个流程，以之前遇到的情况为依据；评审完再决定改不改、怎么改。
+- 阶段：执行合同（`RESULT.md`“执行合同”）。状态：active。Owner 2026-11-12：“确认，确认”（含引擎上限 2050、门后装进 `~/.claude`）。
+- 走法：本仓库 `.ultra` 里程碑 M-P6（分支 `m-p6`），REQ knowledge/status/close/method/docs，检查 `C-engine-p6`、`C-method-p6`，节点 `N-P6-engine`（Codex，已合并）、`N-P6-method`（主会话）。记账用仓库引擎 `node engine/cli.cjs`。
+- 门第 4 步 Owner 原话（2026-11-12）：“先修 准确地说，全部修复完成了之后，我才会去做测试”。所以评审交给 Owner 的缺陷都在本里程碑修完，Owner 在全部修完后才测试、放行。
+- 评审：第 1 轮 `M-P6-review-1.md`、第 2 轮 `M-P6-review-2.md`、第 3 轮 `M-P6-review.md`（`4eba187`，读 `1f25cee`），三轮都 accept。第 3 轮查出 `36a141f` 引入的新停滞：glob 不变量会跑到新需求的红测试，前面的节点全被拒。
+- 第 3 轮之后的修复（`85d8b8e` 先写验收，之后的提交写方法）：开工第 1 步一条“现在是红的测试不进不变量的运行”规则；空目录 `--allow-empty`；清理节点例外；文档检查从测试文件里读 README；状态表 drive 行措辞；drive.md 写明 `UBP_REVIEW_GUIDE`；design.md 改正 js-yaml 事实；README 版本发布前由 C-method-p6 守住；未提交仓库的报错有用例；Direction 草稿只留 Owner 原话（仍待 Owner 确认）。裁决见 `.ultra/rulings.md` 2026-11-12 末尾 4 行。
+- 待做：提交方法改动，`check --all`、节点重新 `node done`；A7 已有代码试验按新文字重跑一次；第 3 轮评审者续接核对修复（不开完整第 4 轮，裁决已记）；门第 1 步（干净检出、retro）；中文演示（Direction 全文、计划变更 12 次的原因、retro 更正、D2 未解、Codex 转发限制、方法检查只是结构性的）；Owner 测试并放行；close、合入 main、release 检查、装进 `~/.claude`。不 push、不打 tag。
+- D2（C-release 干净检出红一次）：原因未知，只加了诊断（裁决已记）。
 - 结果文件：`RESULT.md`。
 <!-- /current-state -->
 

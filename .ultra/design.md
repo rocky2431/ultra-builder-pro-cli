@@ -2,8 +2,9 @@
 
 ## System
 
-- One npm package, `ultra-builder-pro-cli`, Node.js 22 or newer, Git required, no runtime
-  npm dependency. `bin/install.js` is the single entry point: it installs the host plugins
+- One npm package, `ultra-builder-pro-cli`, Node.js 22 or newer, Git required, one runtime
+  npm dependency (`js-yaml`, for Skill frontmatter in `adapters/_shared/frontmatter.cjs`; the
+  engine itself requires only `node:` modules). `bin/install.js` is the single entry point: it installs the host plugins
   (`--claude`, `--codex`, `--all`, `--doctor`, `--uninstall`) and dispatches every engine
   command (`status`, `gate`, `check`, `node done`, `milestone close`, `context`, `approve`,
   `retro`, `merge`, `drive`) to `engine/cli.cjs`.

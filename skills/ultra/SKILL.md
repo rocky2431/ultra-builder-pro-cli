@@ -26,7 +26,7 @@ exit codes: `__UBP_ENGINE_FORMATS__`.
 
 | Status | Step |
 |---|---|
-| `drive` is set (the line ends with `drive 运行中`) and `UBP_DRIVE` is not (you are not that drive's writer or reviewer) | a drive may be running on this tree: change no file, brief no writer and start no drive; follow "A drive in the status" in `references/drive.md` |
+| `drive` is set (the line ends with `drive 运行中`) and `UBP_DRIVE` is not (you are not that drive's writer or reviewer) | a drive may be running on this tree: follow "A drive in the status" in `references/drive.md`; until it says the lock is left over, change no file, brief no writer and start no drive |
 | `dirty: true` | commit or discard first; evidence from a dirty tree never counts |
 | `gate: "fail"` | fix the reported `problems` (see "Plan") |
 | `gate: "stale"` | `ubp gate`, which records the plan change |
@@ -61,22 +61,22 @@ Goal: before any requirement, know what exists, what is not known, and what the 
 in their own words. Four steps, in order; each writes a file, and the next step reads it.
 
 1. **Survey (planner), always.** A directory that is not a Git repository gets `git init` and
-   a first commit of what is there: the engine reads only committed code. Read what is there:
-   `git log`, the layout, how it is built, run and tested, its tests and its docs. Write
-   `.ultra/design.md` (see "Project knowledge"): its `## System` says how the system is built,
-   run and tested today. For existing code, also:
+   a first commit of what is there (`git commit --allow-empty` when it is empty): the engine
+   reads only committed code. Read what is there: `git log`, the layout, how it is built, run
+   and tested, its tests and its docs. Write `.ultra/design.md` (see "Project knowledge"): its
+   `## System` says how the system is built, run and tested today. For existing code, also:
    - run the existing tests and time them, then register their command (the runner and a
      glob, not a list of files, so tests added later join it) as an invariant: a check with
      `covers: []`, a `fix` and a `timeout_sec` above the measured run (see "Keeping it
-     tidy"), so every node keeps what already passes. Tests already red or flaky go under
-     `## Facts`; the invariant leaves them out (another file, or the runner's skip filter),
-     or the milestone's first node is a cleanup node (`"kind": "cleanup"`) that fixes them;
-   - a behavior this work changes gets its own check before its node. A test that pins it
-     moves out of the invariant (to another file, or behind the runner's skip filter) into
-     the requirement's check, rewritten to the new behavior and committed red: left in the
-     invariant, it would refuse every node planned before the change. Where no test pins
-     what surrounds the change, add a characterization check of what must stay the same,
-     committed green;
+     tidy"), so every node keeps what already passes;
+   - a test that is red now stays out of the invariant's run, in a directory its glob does
+     not match or behind the runner's skip filter on a name prefix: in the run, it refuses
+     every node planned before the one that turns it green. That covers a new requirement's
+     test, a test that pins a behavior this work changes (moved out of the invariant into the
+     requirement's check, rewritten to the new behavior and committed red) and a red baseline
+     (tests already red or flaky, noted under `## Facts`), unless the milestone's first node is
+     a cleanup node (`"kind": "cleanup"`) that fixes it. Where no test pins what surrounds a
+     change, add a characterization check of what must stay the same, committed green;
    - requirements cover what this work adds or changes, not the whole existing system;
      the invariant and the characterization checks keep the rest.
 2. **Investigate (planner), only what decides something.** List the unknowns whose answer
@@ -130,7 +130,9 @@ becomes an invariant, and a convention every check relies on goes in the spec's
   structure are not requirements.
 - How a user installs, runs, configures and recovers the product is user-observable too:
   make the user documentation (for example the README) a requirement whose `Done when` a new
-  user can follow, and change it whenever a behavior it describes changes. A constraint a
+  user can follow, and change it whenever a behavior it describes changes. Its check reads the
+  documentation from inside a test file: a file a check's `run` names is off limits to every
+  drive writer (`check-touched`). A constraint a
   handoff reports that a user must know (for example "two servers must not share one data
   file") is an L1 change of that requirement.
 
@@ -279,7 +281,7 @@ Name the layer before touching any file, then follow its row. Every row ends wit
 
 | Difference | Layer | What you do | What the engine does |
 |---|---|---|---|
-| a new behavior | L1 add | spec block, a red check (commit it before code), a node; gate | new node `ready`; no other node changes state; every check is stale until `ubp check` (the new check file is code) |
+| a new behavior | L1 add | spec block, a red check (commit it before code, its test outside every invariant's run: Start step 1), a node; gate | new node `ready`; no other node changes state; every check is stale until `ubp check` (the new check file is code) |
 | a behavior changes | L1 modify | edit the block, its checks; a test inside an invariant that pins the old behavior moves into the requirement's check first (Start step 1); gate | only nodes covering it turn `stale`; brief a writer with the new `ubp context` |
 | a behavior goes away or asks for less | L1 reduce | ask the Owner first (touch `reduction`); `ubp approve <milestone>/<id>… --owner "<words>"` (add `--proxy` when you answered for them); then edit | the gate refuses (`reduction-unapproved`) any dropped requirement, dropped check or narrowed check coverage without that record |
 | how it is built changes | L2 | a ruling; edit `.ultra/design.md` and the plan (usually a new node, or new `depends`); gate | the new node runs; requirement texts are unchanged, so no other node turns stale |
@@ -331,7 +333,8 @@ The ratchet keeps old behavior working. These three keep the code from decaying 
   cleaner) reads the code against the invariants, the Direction's meaning of elegance,
   `.ultra/design.md` and the rulings. It fixes small things inside its scope, reports in its
   handoff where the design no longer matches the code, and turns anything bigger into a new
-  node with a ruling, never a large refactor. It completes only while every finished
+  node with a ruling, never a large refactor (the first node of Start step 1 that fixes a red
+  baseline does what that fix needs). It completes only while every finished
   requirement and every invariant stays green. With `"cleanup_every": K` in `plan.json`,
   the gate requires one at the end of every milestone and after at most K other nodes.
 - **Retro.** At every milestone gate, run `ubp retro` (it leaves out a check's red runs before

@@ -36,8 +36,9 @@ what exists, investigate only the unknowns whose answer changes a requirement, a
 plan, interview the Owner for the rest, and have the Owner confirm the Direction and every
 `Done when` line. Checks and a milestone plan follow. A directory that is not yet a Git
 repository gets `git init` and a first commit. For existing code, the survey records how it is
-built, run and tested, and its test command becomes an invariant every node keeps; a test that
-pins a behavior the Owner wants changed moves out of it into that requirement's own check.
+built, run and tested, and its test command becomes an invariant every node keeps. A test that
+is red now (a new requirement's, one that pins a behavior the Owner wants changed, or one already
+failing) stays out of the invariant's run until a node turns it green.
 
 `.ultra/design.md` holds what the project knows: the system, the design decisions in force and
 the investigated facts with their sources. The planner keeps it, writers never edit it, and

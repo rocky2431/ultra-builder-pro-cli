@@ -12,11 +12,12 @@ The package version is 6.1.0-rc.0 until this is released.
 - Start any project, empty or with existing code, in four steps: survey what exists,
   investigate only the unknowns whose answer changes a requirement, a check or the plan,
   interview the Owner for the rest, and have the Owner confirm the Direction and every
-  `Done when` line. For existing code, the existing test command becomes an invariant after a
-  baseline run (red tests are left out of it or fixed by a first cleanup node), and a
-  characterization check pins what must stay the same around a change. A test that pins a
-  behavior the Owner wants changed moves out of the invariant into that requirement's own
-  check, rewritten red; left inside, it refused every node planned before the change. A
+  `Done when` line. For existing code, the existing test command (the runner and a glob)
+  becomes an invariant after a baseline run, and a characterization check pins what must stay
+  the same around a change. A test that is red now (a new requirement's test, a test that pins
+  a behavior the Owner wants changed, rewritten red, or a red baseline) stays out of the
+  invariant's run, unless a first cleanup node fixes the baseline: inside it, it refused every
+  node planned before the one that turns it green. A
   project that has a spec but no `.ultra/design.md` gets one from a survey before its next
   node, never while a drive runs.
 - Add `.ultra/design.md`, the project's current knowledge: `## System`, `## Decisions` and
