@@ -102,7 +102,7 @@ function v6Project(t) {
 }
 
 test('package metadata names v6, Claude Code and Codex only', () => {
-  assert.equal(PACKAGE.version, '6.0.0');
+  assert.equal(PACKAGE.version, '6.1.0-rc.0');
   assert.match(PACKAGE.description, /Claude Code/u);
   assert.match(PACKAGE.description, /Codex/u);
   for (const gone of ['OpenCode', 'Kimi', 'Grok', 'ZCode']) {
@@ -111,8 +111,8 @@ test('package metadata names v6, Claude Code and Codex only', () => {
       false, `keyword ${gone}`);
   }
   const lock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
-  assert.equal(lock.version, '6.0.0');
-  assert.equal(lock.packages[''].version, '6.0.0');
+  assert.equal(lock.version, '6.1.0-rc.0');
+  assert.equal(lock.packages[''].version, '6.1.0-rc.0');
 });
 
 test('the runtime list is Claude Code and Codex', () => {
@@ -166,7 +166,12 @@ test('the milestone review blocks only on a broken Done when or a reproducible w
     const example = (name) => flat(fs.readFileSync(path.join(ROOT, 'docs', 'examples', 'drive',
       name), 'utf8'));
     const reviewer = example('claude-reviewer.sh');
-    for (const [name, text] of [['method', gate], ['example reviewer', reviewer]]) {
+    // One copy of the reviewer's instructions (M-P6): the gate and the example reviewer read it.
+    const guide = flat(fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'references',
+      'review.md'), 'utf8'));
+    assert.ok(gate.includes('references/review.md'), 'the gate names the review reference');
+    assert.ok(reviewer.includes('skills/ultra/references/review.md'), 'the example reads it');
+    for (const [name, text] of [['review reference', guide]]) {
       for (const want of ['Done when', 'never blocks', 'does not block',
         'What must be said to the Owner', 'loses or corrupts data',
         'on the input the broken copy got wrong', 'regressions',
@@ -174,15 +179,15 @@ test('the milestone review blocks only on a broken Done when or a reproducible w
         assert.ok(text.includes(want), `${name}: ${want}`);
       }
     }
-    assert.ok(reviewer.includes('ends with Verdict: revise'),
-      'the example reviewer re-checks only after a revise, as the method does');
+    assert.ok(guide.includes('ends with Verdict: revise'),
+      'the reviewer re-checks only after a revise, as the method does');
     assert.ok(gate.includes('Never answer this by proxy while the step-3 list holds a defect'),
       'a defect left for the Owner is not passed by proxy');
     assert.ok(method.includes('answer them by proxy from then on, except step 4 of the milestone '
       + 'gate'), 'delegation does not override the milestone gate step 4 rule');
     assert.ok(gate.includes('the gate then starts again at step 1, with a full review'),
       'a change made at the gate gets a full review');
-    assert.ok(!reviewer.includes('a defect included'),
+    assert.ok(!guide.includes('a defect included'),
       'a defect found in a re-review is not waved through to the Owner');
     assert.ok(gate.includes('handoffs'), 'the demo lists what the writers left in their handoffs');
     assert.ok(example('claude-writer.sh').includes('noticed and left unchanged'),
@@ -215,8 +220,13 @@ test('the method starts the drive in the background and waits while one runs', (
   const dirty = rows.findIndex((row) => row.includes('dirty: true'));
   assert.ok(running > 0 && running < dirty, table);
   assert.ok(rows[running].includes('UBP_DRIVE'), 'a drive\'s own writer is not told to stop');
-  assert.ok(flat.includes('ps -o command='), 'a lock whose pid no longer runs a drive is left over');
-  assert.ok(rows[running].includes('treat the drive as running'), 'a failed ps removes no lock');
+  // The lock procedure lives in the drive reference, next to drive-running (M-P6).
+  assert.ok(rows[running].includes('references/drive.md'), rows[running]);
+  assert.ok(rows[running].includes('change no file'), rows[running]);
+  const drive = fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'references', 'drive.md'),
+    'utf8').replace(/\s+/gu, ' ');
+  assert.ok(drive.includes('ps -o command='), 'a lock whose pid no longer runs a drive is left over');
+  assert.ok(drive.includes('treat the drive as running'), 'a failed ps removes no lock');
 });
 
 test('the example drive agents cannot run outward commands that cannot be undone', () => {

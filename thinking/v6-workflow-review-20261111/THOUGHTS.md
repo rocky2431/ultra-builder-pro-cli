@@ -13,9 +13,11 @@
 - A7 两次实测已跑，记录在 `.ultra/records/acceptance/a7-start-trials/`：已有代码库产出 System、不变量 `C-suite`、特征检查、带 `Done when` 的规格、gate 通过；新项目走到访谈。局限：Shortlink 原本就有过期功能；克隆保留了旧 `.ultra` 历史。
 - 实测查出方法原有错误：`^ℹ pass [1-9][0-9]*$` 在 Node 22/25 上对“一个测试都没跑”也通过；已改方法和 FORMATS.md 的示例并记裁决；本仓库已关闭里程碑的检查未改（演示时告诉 Owner）。
 - 从合并起记账和状态改用仓库引擎 `node engine/cli.cjs`（A3 要在本仓库实时状态行上看到“待复核”）。
-- `check --all`（合并后、仓库引擎）9/9 绿，`8aeead6`。第 1 轮评审：accept、无阻断，存为 `.ultra/records/milestones/M-P6-review-1.md`；其中给 Owner 的方法缺口（改已有测试固定的行为、红/慢的基线、已有 spec 无 design、`待复核` 措辞、`^\s*✔`、Claude Code 用 Monitor 转发 drive、`all-done` 等）已在门口修掉，所以门从第 1 步重来、第 2 轮做完整评审（合同上限 2 轮）。
-- 交 Owner 决定、不在本次做：本仓库自己补 Direction/design/逐测试 `expect`；`references/review.md` 合并三份评审说明、状态表 drive 行挪进 drive.md、`milestone close` 去掉 `--review`（都要改已关闭验收或 CLI）；版本号（`tests/v6-package.test.cjs` 钉在 6.0.0）。
-- 未完成：`check --all`；门第 1 步干净检出和 `retro`；第 2 轮评审；演示；Owner 本人放行；合入 main；release 检查；装进真实 `~/.claude`。不 push、不打 tag。
+- 第 1 轮评审 accept（`M-P6-review-1.md`），门口修过一次（`d66f091`）；第 2 轮评审 accept（`M-P6-review.md`，`62a180b`），但查出 `d66f091` 引入的回归：被现有测试钉住的行为改红后留在不变量里，前面所有节点被拒。演示 `M-P6-demo.md`（`a814f6c`）。
+- Owner 2026-11-12 门第 4 步：“先修 准确地说，全部修复完成了之后，我才会去做测试”。按“全部”做：D1–D8、D2 原因、版本 6.1.0-rc.0、验收缺口、`references/review.md`、锁处理挪进 drive.md、本仓库 Direction（起草待确认）/design/逐测试 `expect`、REQ-P6-docs、A7 重测（含改钉住行为的一次）、第 3 轮评审。`close` 去掉 `--review` 不做（推翻 REQ-P6-close），演示时说明。裁决见 `.ultra/rulings.md` 2026-11-12 末尾 8 行。
+- D2（C-release 干净检出红一次）：CPU 压测、两套并发两轮、采样均未复现，原因未知；正在 `/tmp/ubp-p6-clean` 用插桩的 `gone()` 六路循环（后台 `babc2scnc`，日志 `/tmp/ubp-p6-gone.log`）。
+- 验收已写（先红）：engine-p6 新增 5 条（4 条缺口在 HEAD 绿、6 个坏副本各被抓住；未开工那条红）；method-p6 新增 6 条红；C-package 3 条按新位置改写后红。
+- 未完成：提交验收并 `ubp check` 确认先红；方法（SKILL.md、drive.md、新 review.md、示例评审、README×2、CHANGELOG、版本号、交接 D8 更正）；Codex 写 N-P6-engine 未开工提示；本仓库 `design.md`；D2；A7 重测；门第 1 步、第 3 轮评审、演示、Owner 放行；合入 main；release 检查；装进 `~/.claude`。不 push、不打 tag。
 - 结果文件：`RESULT.md`。
 <!-- /current-state -->
 

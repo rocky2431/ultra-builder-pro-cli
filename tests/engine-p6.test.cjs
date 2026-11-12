@@ -46,14 +46,16 @@ Plain Node.js, no dependencies. The list lives in memory in \`src/app.cjs\`.
 - Items are kept in insertion order (ruling 2026-11-12).
 `;
 
-// A check passes unless `.ultra/.runtime/fail-<id>` exists. The runtime directory is ignored
-// and engine-owned, so toggling a failure never dirties the tree or changes the code.
+// A check passes unless `.ultra/.runtime/fail-<id>` exists; with `.ultra/.runtime/quiet-<id>`
+// it exits 0 without its expected line, so its outcome is unknown. The runtime directory is
+// ignored and engine-owned, so toggling never dirties the tree or changes the code.
 const PASS_SCRIPT = `const fs = require('node:fs');
 const id = process.argv[2];
 if (fs.existsSync('.ultra/.runtime/fail-' + id)) {
   console.log('AssertionError: ' + id + ' toggled off');
   process.exit(1);
 }
+if (fs.existsSync('.ultra/.runtime/quiet-' + id)) process.exit(0);
 console.log('pass 1');
 `;
 
@@ -231,6 +233,23 @@ test('a design too large for the brief is named in the refusal', (t) => {
   assert.match(result.problems[0].hint, /\.ultra\/design\.md/u);
 });
 
+test('the brief keeps the shared text in file order, internal empty lines included', (t) => {
+  // CRLF, trailing whitespace, a run of empty lines, a fenced heading that is not a
+  // requirement, a section between two requirement blocks and one after the last.
+  const spec = ['# Spec', '', '## Direction  ', 'North star: one list.\t', '', '', '',
+    'Users: one person.', '', '```text', '## REQ-999 not a requirement', '```', '',
+    '## REQ-001 Add an item', 'The user adds an item and sees it in the list.', '',
+    '## Interface', '`node src/app.cjs` prints `ready`.', '',
+    '## REQ-002 Remove an item', 'The user removes an item and it disappears from the list.',
+    '', '# Tail heading', 'A closing note.  ', '', ''].join('\r\n');
+  const fx = project(t, { '.ultra/spec.md': spec });
+  const known = section(ok(fx, ['context', 'N-01']).stdout, '## Project', '## Requirements');
+  assert.equal(known, ['', '## Project', '', '# Spec', '', '## Direction', 'North star: one list.',
+    '', '', '', 'Users: one person.', '', '```text', '## REQ-999 not a requirement', '```', '',
+    '## Interface', '`node src/app.cjs` prints `ready`.', '', '# Tail heading',
+    'A closing note.', '', '### .ultra/design.md', '', 'No design written.', ''].join('\n'));
+});
+
 // ---------------------------------------------------------------------------------------
 // REQ-P6-status
 
@@ -261,6 +280,67 @@ test('a closed milestone stale only from a commit reads 待复核; one that fail
   assert.doesNotMatch(state.line, /待复核/u);
 });
 
+test('a closed requirement is to be rechecked only when every covering check last passed',
+  (t) => {
+    const checks = [check('C-1', ['REQ-001']), check('C-1b', ['REQ-001']),
+      check('C-2', ['REQ-002'])];
+    const notes = (fx, text) => { write(fx.root, 'notes.md', text); commitAll(fx.root, text); };
+    // One covering check's latest run failed while the other's passed.
+    const mixed = project(t, { '.ultra/checks.json': `${JSON.stringify({ version: 1, checks })}\n` });
+    closeM1(mixed);
+    write(mixed.root, '.ultra/.runtime/fail-C-1b', '');
+    ok(mixed, ['check', 'C-1b'], 1);
+    notes(mixed, 'A note.\n');
+    let state = status(mixed);
+    assert.equal(state.closed_not_green, 1, state.line);
+    assert.equal(state.closed_recheck, 0, state.line);
+    // The covering check's latest run was unknown (its expected line never came).
+    const quiet = project(t);
+    closeM1(quiet);
+    write(quiet.root, '.ultra/.runtime/quiet-C-1', '');
+    ok(quiet, ['check', 'C-1'], 1);
+    notes(quiet, 'A note.\n');
+    state = status(quiet);
+    assert.equal(state.closed_not_green, 1, state.line);
+    assert.equal(state.closed_recheck, 0, state.line);
+    assert.doesNotMatch(state.line, /待复核/u);
+  });
+
+test('when every milestone is closed, the last one is current and in neither closed count',
+  (t) => {
+    const fx = project(t);
+    closeM1(fx);
+    ok(fx, ['check']);
+    ok(fx, ['node', 'done', 'N-02']);
+    assert.equal(close(fx, 'M2', review(fx, 'M2')).ok, true);
+    write(fx.root, 'notes.md', 'A note.\n');
+    commitAll(fx.root, 'note');
+    const state = status(fx);
+    assert.match(state.line, /^M2 · /u);
+    assert.equal(state.closed_recheck, 1, state.line);
+    assert.equal(state.closed_not_green, 0, state.line);
+    assert.match(state.line, / · 已关闭里程碑 1 项待复核(?: · |$)/u);
+  });
+
+test('a project without .ultra/spec.md has not started, and every command says so', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-p6-new-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  git(root, ['init', '-q', '-b', 'main']);
+  git(root, ['config', 'user.name', 'UBP Test']);
+  git(root, ['config', 'user.email', 'ubp@example.invalid']);
+  write(root, 'src/app.cjs', 'module.exports = {};\n');
+  commitAll(root, 'existing code');
+  for (const args of [['status'], ['status', '--json'], ['check'], ['gate'], ['context', 'N-01']]) {
+    const result = run({ root }, args);
+    assert.equal(result.status, 2, `${args.join(' ')}: ${result.stdout}${result.stderr}`);
+    assert.ok(result.stderr.includes(
+      ' has not started: .ultra/spec.md does not exist. Start it with the ultra Skill.'),
+    `${args.join(' ')}: ${result.stderr}`);
+    assert.doesNotMatch(result.stdout + result.stderr, /ENOENT/u, args.join(' '));
+  }
+  assert.equal(git(root, ['status', '--porcelain', '--ignored']), '', 'nothing was written');
+});
+
 test('drive --json reports every event on stderr and keeps stdout for the result', (t) => {
   const fx = project(t);
   const result = ok(fx, ['drive', '--writer', `${NODE} tools/writer.cjs`, '--json']);
@@ -275,6 +355,20 @@ test('drive --json reports every event on stderr and keeps stdout for the result
     < lines.indexOf('drive: stop milestone-gate'), result.stderr);
 });
 
+test('drive --json writes each problem of a stop on stderr', (t) => {
+  const fx = project(t);
+  write(fx.root, 'src/scratch.txt', 'x\n');
+  const result = ok(fx, ['drive', '--writer', `${NODE} tools/writer.cjs`, '--json'], 1);
+  const outcome = JSON.parse(result.stdout);
+  assert.ok(outcome.problems.length > 0, result.stdout);
+  const lines = result.stderr.split('\n');
+  for (const p of outcome.problems) {
+    const line = `${p.code}: ${p.message} — ${p.hint}`;
+    assert.ok(lines.includes(line), `${line} in:\n${result.stderr}`);
+  }
+  assert.ok(lines.includes(`drive: stop ${outcome.stop}`), result.stderr);
+});
+
 // ---------------------------------------------------------------------------------------
 // REQ-P6-close
 
@@ -286,9 +380,13 @@ test('a milestone closes only on its own review', (t) => {
   const milestones = path.join(fx.root, '.ultra', 'ledger', 'milestones.jsonl');
   const closures = () => fs.readFileSync(milestones, 'utf8').trim().split('\n').length;
   assert.equal(closures(), 1);
+  // An accepting review with the right file name outside the records is not this review.
+  write(fx.root, 'docs/M2-review.md', 'Reviewer: a reviewer who wrote none of M2\n\nVerdict: accept\n');
+  commitAll(fx.root, 'docs');
+  ok(fx, ['check']);
 
   for (const other of ['.ultra/records/milestones/M1-review.md', review(fx, 'M2', 'M2-notes.md'),
-    review(fx, 'M2', 'M2-review-1.md')]) {
+    review(fx, 'M2', 'M2-review-1.md'), 'docs/M2-review.md']) {
     const refused = close(fx, 'M2', other, 1);
     assert.equal(refused.ok, false);
     assert.deepEqual(codes(refused), ['review-not-for-milestone'], other);

@@ -59,7 +59,8 @@
         "REQ-P6-knowledge",
         "REQ-P6-status",
         "REQ-P6-close",
-        "REQ-P6-method"
+        "REQ-P6-method",
+        "REQ-P6-docs"
       ]
     }
   ],
@@ -212,7 +213,8 @@
       "milestone": "M-P6",
       "title": "Start any project, keep knowledge flowing, references for drive and merge",
       "covers": [
-        "REQ-P6-method"
+        "REQ-P6-method",
+        "REQ-P6-docs"
       ],
       "depends": [
         "N-P5-package"
@@ -222,7 +224,9 @@
         "docs/examples/drive/",
         "README.md",
         "README.zh-CN.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "package.json",
+        "package-lock.json"
       ]
     }
   ]
