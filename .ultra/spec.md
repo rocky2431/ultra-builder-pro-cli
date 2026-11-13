@@ -5,19 +5,26 @@ Requirements are the observable phase exits of `thinking/back-to-essentials-2026
 writes progress by hand.
 
 ## Direction
-North star (Owner, 2026-10-31): "集当前所有上下文工程、Harness 工程为一体的一个作品"; "有控制、有进度，
-同时又不失灵活性，把整个事情做得井井有条，而且具有极高的辨识度"; "能够用它产生真实、优雅且非常厉害的工程样本".
-Its two purposes (2026-10-30): "1. 自动化 2. 更好、更精确的意图识别与执行".
-Users: the Owner, who runs several projects at once, "有的项目是在已有代码上去做，有的是全新的"
-(2026-11-11); the hosts are Claude Code and Codex only (the confirmed v6 contract).
-Success (Owner, 2026-10-31): "只要最终能产出一个真正好用的东西就行"; the problems it ends: "你不知道具体
-进度是什么" (2026-10-30) and, from 1 to 100, "越改越乱". Done when the Owner can take it to a first
-real project; that first real sample is the real acceptance (the confirmed v6 contract).
+North star (Owner, 2026-10-31):
+"集当前所有上下文工程、Harness 工程为一体的一个作品";
+"有控制、有进度，同时又不失灵活性，把整个事情做得井井有条，而且具有极高的辨识度";
+"能够用它产生真实、优雅且非常厉害的工程样本".
+The purposes of the earlier UBP, as the Owner named them (2026-10-30):
+"1. 自动化 2. 更好、更精确的意图识别与执行".
+Users: the Owner, who runs several projects at once,
+"有的项目是在已有代码上去做，有的是全新的" (2026-11-11); the hosts are Claude Code and Codex only
+(the confirmed v6 contract).
+Success (Owner, 2026-10-31): "只要最终能产出一个真正好用的东西就行". Done when the Owner can
+take it to a first real project; that first real sample is the real acceptance (the confirmed
+v6 contract). The Owner's complaints that success should end (the assistant's reading):
+"你不知道具体进度是什么" (2026-10-30) and, from 1 to 100, "越改越乱" (2026-10-31).
 Abandon: not stated by the Owner.
 Boundary: one method (`ultra`), one engine (`ubp`) and one advisory hook; no daemon, runner or
-Python hook (this repository's v6 product boundary, not the Owner's words); publishing and
-installing are the Owner's acts. Accepted cost (2026-10-31): "它在 0 到 1 阶段可能会比较重，但这是我们
-可以接受的".
+Python hook (this repository's v6 product boundary, not the Owner's words). Push, tag, npm
+publishing and installing in the real HOME wait for the Owner: the v6 contract excludes
+"push、tag、npm 发布", and the M-P6 contract the Owner confirmed ("确认，确认") says
+"门通过后装进 ~/.claude，不 push、不发布".
+Accepted cost (2026-10-31): "它在 0 到 1 阶段可能会比较重，但这是我们可以接受的".
 Elegance: not stated by the Owner.
 
 ## REQ-P1-stale Editing one requirement invalidates only what depends on it
@@ -153,10 +160,13 @@ code, in four steps: survey what exists (for existing code, `## System` in
 run, and characterization checks before an unpinned behavior is changed); investigate only
 the unknowns whose answer changes a requirement, a check or the plan, recording each answer
 and its source in `.ultra/design.md`; interview the Owner for what investigation cannot
-settle; and have the Owner confirm the Direction and every `Done when` line. A test that is
-red now (a red baseline, a test that pins a behavior this work changes, rewritten to the new
-behavior, or a new requirement's test) stays out of the invariant's run, unless a first
-cleanup node fixes a red baseline, so no node is refused for a test a later node turns green.
+settle; and have the Owner confirm the Direction and every `Done when` line. Every test this
+work adds or rewrites red (a new requirement's test, or a test that pins a behavior this work
+changes, rewritten to the new behavior) waits in the milestone's own test directory, outside
+the invariant's run, and after the acceptance commit every invariant that was green is still
+green, so no node is refused for a test a later node turns green; at the milestone gate that
+directory joins the project's own test command and the invariant. A red baseline stays out of
+the invariant's run unless a first cleanup node fixes it.
 A project with a spec but no `.ultra/design.md` gets
 one from a survey, never while a drive runs. The method says who writes and who reads
 `.ultra/design.md`; its escalation covers a fact nobody knows; its milestone review, one
@@ -171,7 +181,8 @@ escalation for an unknown fact, the review against the Owner's words, documentat
 requirement and progress reports, with drive, merge and review instructions in references
 and `SKILL.md` no longer than 395 lines, and a headless session that adds a behavior and
 changes one an existing test pins, following the method's text, reaches the milestone gate
-without a node refused by the invariant (contract A6, A7).
+without a node refused by the invariant, and after gate step 1 the project's own test command
+runs the milestone's new tests (contract A6, A7).
 
 ## REQ-P6-docs The README takes a new user from install to a closed milestone
 `README.md` and `README.zh-CN.md` say how to install for each host, how to start a new or

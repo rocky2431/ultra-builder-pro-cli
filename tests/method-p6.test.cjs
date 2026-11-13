@@ -126,18 +126,32 @@ test('a behavior an existing test pins changes without stalling earlier nodes', 
   assert.ok(row && row.includes('invariant'), row);
 });
 
-test('a test that is red now stays out of the invariant\'s run', () => {
-  // M-P6 review round 3, point 2: a glob invariant also ran each new requirement's red test and
-  // refused every node planned before it; "another file" inside the glob did the same.
+test('a test this work turns red waits outside the invariant and joins it at the gate', () => {
+  // M-P6 review round 3, point 2, and its re-check, points 2 and 3: a red test in the
+  // invariant's run refused every node planned before the one that turns it green (a file in
+  // the glob, or a new file that fails to load, which no skip filter can skip), and tests kept
+  // outside the glob never reached the project's own test command. The Owner chose A
+  // (2026-11-12): one milestone directory, an outcome check after the acceptance commit, and
+  // the directory joining the test command at the milestone gate.
   const method = body(skill());
   const start = flat(sectionOf(method, '## Start'));
-  for (const want of ['a test that is red now', 'a new requirement\'s test', 'a red baseline',
-    'a directory its glob does not match', 'name prefix', 'git commit --allow-empty']) {
+  for (const want of ['the milestone\'s own test directory', 'a new requirement\'s test',
+    'a red baseline', '"kind": "cleanup"', 'git commit --allow-empty']) {
     assert.ok(start.includes(want), `Start: ${want}`);
   }
+  assert.ok(!start.includes('name prefix'), 'a skip filter cannot skip a file that fails to load');
   assert.ok(!start.includes('(another file'), 'a file inside the glob is still in its run');
+  const spec = flat(sectionOf(method, '## Specification and checks'));
+  assert.ok(spec.includes('every invariant that was green before this commit is still green'),
+    spec);
+  const gate = flat(sectionOf(method, '## Milestone gate'));
+  assert.ok(gate.includes('own test directory') && gate.includes('test command'), gate);
   const tidy = flat(sectionOf(method, '## Keeping it tidy'));
   assert.ok(tidy.includes('Start step 1'), 'the baseline cleanup node fixes what its tests need');
+  assert.ok(flat(read(ROOT, 'README.md')).includes('the milestone\'s own test directory'),
+    'README.md');
+  assert.ok(flat(read(ROOT, 'README.zh-CN.md')).includes('里程碑自己的测试目录'),
+    'README.zh-CN.md');
 });
 
 test('a documentation check and a copied example reviewer keep a drive going', () => {
