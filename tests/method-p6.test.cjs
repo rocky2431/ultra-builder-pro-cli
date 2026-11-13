@@ -141,11 +141,19 @@ test('a test this work turns red waits outside the invariant and joins it at the
   }
   assert.ok(!start.includes('name prefix'), 'a skip filter cannot skip a file that fails to load');
   assert.ok(!start.includes('(another file'), 'a file inside the glob is still in its run');
+  // Re-check 2: a runner that finds tests recursively needs its own path means, and a red
+  // baseline fixed by a first cleanup node is the one invariant registered red.
+  assert.ok(start.includes('path means'), 'Start: the runner\'s own path means');
+  assert.match(start, /passes when registered, unless the milestone's first node is a cleanup node/u);
   const spec = flat(sectionOf(method, '## Specification and checks'));
   assert.ok(spec.includes('every invariant that was green before this commit is still green'),
     spec);
+  // Re-check 2: with a red baseline, colour alone misses a new test left in the run.
+  assert.ok(spec.includes('no test file this commit adds is in an invariant\'s run'), spec);
   const gate = flat(sectionOf(method, '## Milestone gate'));
   assert.ok(gate.includes('own test directory') && gate.includes('test command'), gate);
+  // Re-check 2: under drive the review comes before the join, so its ruling shows the change.
+  assert.ok(gate.includes('`run` before and after'), gate);
   const tidy = flat(sectionOf(method, '## Keeping it tidy'));
   assert.ok(tidy.includes('Start step 1'), 'the baseline cleanup node fixes what its tests need');
   assert.ok(flat(read(ROOT, 'README.md')).includes('the milestone\'s own test directory'),
