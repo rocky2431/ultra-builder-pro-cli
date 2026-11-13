@@ -9,7 +9,8 @@
 - 门第 4 步 Owner 原话（2026-11-12）：“先修 准确地说，全部修复完成了之后，我才会去做测试”。
 - 评审：第 1–3 轮都 accept（`M-P6-review-1.md`、`-review-2.md`、`M-P6-review.md`）；第 3 轮之后的修复核对 `M-P6-recheck-1.md`（accept，又查出不变量机制的新卡死路径）。
 - Owner 2026-11-12 选 A（“选A吧”）：新写或改写成红的测试只放里程碑自己的测试目录；验收提交后原来绿的不变量必须仍绿；门第 1 步把该目录并入项目测试命令和不变量。`8a5d910` 先写验收（含 Direction 按核对第 4 点改正），随后一次提交写方法。裁决见 `.ultra/rulings.md` 末尾 3 行。
-- 待做：`check --all` 和节点 `node done`；A7 已有代码试验重跑（提示词改为做完门第 1 步再停）；第 3 轮评审者第 2 次核对；干净检出和 retro；演示定稿（草稿 `/tmp/M-P6-demo-draft.md`，要更新：计划变更 18 次、A 方案、Direction 全文、“都可以纳入考虑”）；Owner 测试（`/tmp/ubp-owner-test` 临时安装）并放行；close、合入 main、release 检查、装进 `~/.claude`。不 push、不打 tag。
+- 已做：`ef37b09` 上主工作区和干净检出都 9/9（`69afcc9`），A7 第 4 轮按 A 走完门第 1 步、没有节点被拒（`a7-start-trials-4/`），第 2 次核对 accept（`M-P6-recheck-2.md`），它列的 4 处措辞已按先红再改修好。
+- 待做：`check --all` 和干净检出；评审者确认 4 处措辞；演示定稿（草稿 `/tmp/M-P6-demo-draft.md`，要更新：计划变更 18 次、A 方案、Direction 全文、“都可以纳入考虑”）；Owner 测试（`/tmp/ubp-owner-test` 临时安装）并放行；close、合入 main、release 检查、装进 `~/.claude`。不 push、不打 tag。
 - 交给 Owner 定、默认不改：A7 会话不给无 README 项目加文档需求；已关闭 M-P5 的 C-package 写死版本号。
 - D2（C-release 干净检出红一次）：原因未知，只加了诊断。
 - 结果文件：`RESULT.md`。

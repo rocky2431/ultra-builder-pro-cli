@@ -172,3 +172,16 @@ first (`45ef203`), then:
 
 - Whether a fresh session does the join at gate step 1 from the text alone: the A7 rerun, which
   now runs through gate step 1, judges it.
+
+## Wording after the second re-check (2026-11-12)
+
+- Start step 1: the milestone's directory is kept out of the invariant's run "by the runner's
+  own path means" (a glob that does not match it, pytest `--ignore`, a Go package list); plain
+  `node --test`, pytest and `go test ./...` find it recursively otherwise. The red-baseline
+  sentence no longer contradicts its cleanup exception.
+- Specification: the acceptance commit also checks that no test file it adds is in an
+  invariant's run (read from `run`), which colour alone misses when a red baseline is fixed by
+  a first cleanup node.
+- Gate step 1: the join's ruling quotes the invariant's `run` before and after, since under
+  drive the review comes before the join and the engine records no plan change for it.
+- SKILL.md: 394 lines.
