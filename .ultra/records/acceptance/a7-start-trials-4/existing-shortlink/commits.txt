@@ -1,0 +1,14 @@
+ac3c761 UBP M4 gate step 1: all checks green on HEAD and in a clean checkout
+b02902c M4 gate: test/m4 joins npm test and the invariant INV-suite
+523cf5b UBP M4: REQ-deleted-page states the rollback constraint (L1 modify)
+55b8090 UBP M4: N-deleted done; fold its handoff into the design
+f192649 N-deleted: handoff, rulings and check evidence
+6fb9cc5 Answer 410 已删除 for a deleted short link
+7b9f87f UBP M4: N-total done; fold its handoff into the design
+1b29bf8 N-total: handoff, rulings and check evidence
+97b744c Show the total of all visits at the top of the page
+7d463db UBP M4: plan gate baseline and first check runs
+94b3cc5 UBP M4: spec, checks, plan, design, rulings, interview
+8ca2068 M4 acceptance tests: total visits and 410 已删除 (red)
+7025b92 Set up UBP: ignore .ultra/.runtime, union-merge the ledgers
+5a201b1 Shortlink as it is today

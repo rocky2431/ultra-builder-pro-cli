@@ -1,0 +1,33 @@
+commit b02902c017aeb5cc49b6db5e2e8ae958803545e4
+Author: Owner <owner@example.invalid>
+Date:   Thu Nov 12 18:47:50 2026 -0800
+
+    M4 gate: test/m4 joins npm test and the invariant INV-suite
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+diff --git a/.ultra/checks.json b/.ultra/checks.json
+index 968a48d..5e38b36 100644
+--- a/.ultra/checks.json
++++ b/.ultra/checks.json
+@@ -4,7 +4,7 @@
+     {
+       "id": "INV-suite",
+       "covers": [],
+-      "run": "node --test --test-reporter=spec test/*.test.cjs",
++      "run": "node --test --test-reporter=spec test/*.test.cjs test/m4/*.test.cjs",
+       "timeout_sec": 180,
+       "expect": "^\\s*✔ REQ-redirect: an unknown code answers 404 with an HTML page",
+       "fix": "Run the command, read the first ✖ test and its error, and repair src/ (never the test) until the existing suite passes again."
+diff --git a/package.json b/package.json
+index b5d9893..c08c7bd 100644
+--- a/package.json
++++ b/package.json
+@@ -9,6 +9,6 @@
+   },
+   "scripts": {
+     "start": "node src/server.cjs",
+-    "test": "node --test --test-reporter=spec test/*.test.cjs"
++    "test": "node --test --test-reporter=spec test/*.test.cjs test/m4/*.test.cjs"
+   }
+ }
