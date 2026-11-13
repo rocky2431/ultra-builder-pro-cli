@@ -102,7 +102,9 @@ function v6Project(t) {
 }
 
 test('package metadata names v6, Claude Code and Codex only', () => {
-  assert.equal(PACKAGE.version, '6.1.0-rc.0');
+  // Major 6 and one version everywhere, so a release never edits this closed acceptance
+  // (ruling 2026-11-13, the Owner's "不要留尾巴").
+  assert.match(PACKAGE.version, /^6\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/u);
   assert.match(PACKAGE.description, /Claude Code/u);
   assert.match(PACKAGE.description, /Codex/u);
   for (const gone of ['OpenCode', 'Kimi', 'Grok', 'ZCode']) {
@@ -111,8 +113,8 @@ test('package metadata names v6, Claude Code and Codex only', () => {
       false, `keyword ${gone}`);
   }
   const lock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
-  assert.equal(lock.version, '6.1.0-rc.0');
-  assert.equal(lock.packages[''].version, '6.1.0-rc.0');
+  assert.equal(lock.version, PACKAGE.version);
+  assert.equal(lock.packages[''].version, PACKAGE.version);
 });
 
 test('the runtime list is Claude Code and Codex', () => {

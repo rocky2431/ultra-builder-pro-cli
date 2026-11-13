@@ -169,6 +169,9 @@ test('a documentation check and a copied example reviewer keep a drive going', (
   // drive writer, and a copied claude-reviewer.sh could not find the review guide.
   const spec = flat(sectionOf(body(skill()), '## Specification and checks'));
   assert.ok(spec.includes('from inside a test file'), spec);
+  // Owner, 2026-11-13 ("不要留尾巴"): on existing code the documentation is a requirement when
+  // this work changes how a user installs, runs, configures or recovers it (Start step 1).
+  assert.ok(spec.includes('on existing code, when this work changes how a user installs'), spec);
   const drive = flat(read(SKILL_DIR, 'references', 'drive.md'));
   assert.ok(drive.includes('UBP_REVIEW_GUIDE'), 'drive.md names the guide variable');
 });
