@@ -132,13 +132,13 @@ becomes an invariant, and a convention every check relies on goes in the spec's
 - Then one `## REQ-<id> <title>` block per user-observable behavior: what the user does and
   sees, then a line `Done when: <the Owner's acceptance sentence>`. Small fixes and internal
   structure are not requirements.
-- How a user installs, runs, configures and recovers the product is user-observable too:
-  make the user documentation (for example the README) a requirement whose `Done when` a new
-  user can follow, and change it whenever a behavior it describes changes. Its check reads the
+- How a user installs, runs, configures and recovers the product is user-observable too: make
+  the user documentation (for example the README) a requirement whose `Done when` a new user
+  can follow (on existing code, when this work changes how a user installs, runs, configures
+  or recovers it), and change it whenever a behavior it describes changes. Its check reads the
   documentation from inside a test file: a file a check's `run` names is off limits to every
-  drive writer (`check-touched`). A constraint a
-  handoff reports that a user must know (for example "two servers must not share one data
-  file") is an L1 change of that requirement.
+  drive writer (`check-touched`). A constraint a handoff reports that a user must know (for
+  example "two servers must not share one data file") is an L1 change of that requirement.
 
 Checks (acceptance author, never the writer):
 
