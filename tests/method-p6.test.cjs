@@ -148,8 +148,10 @@ test('a test this work turns red waits outside the invariant and joins it at the
   const spec = flat(sectionOf(method, '## Specification and checks'));
   assert.ok(spec.includes('every invariant that was green before this commit is still green'),
     spec);
-  // Re-check 2: with a red baseline, colour alone misses a new test left in the run.
-  assert.ok(spec.includes('no test file this commit adds is in an invariant\'s run'), spec);
+  // Re-check 2: with a red baseline, colour alone misses a new test left in the run; a green
+  // characterization test may still join the run (re-check 2 confirmation, point 2).
+  assert.ok(spec.includes('no test this commit adds or rewrites red is in an invariant\'s run'),
+    spec);
   const gate = flat(sectionOf(method, '## Milestone gate'));
   assert.ok(gate.includes('own test directory') && gate.includes('test command'), gate);
   // Re-check 2: under drive the review comes before the join, so its ruling shows the change.
