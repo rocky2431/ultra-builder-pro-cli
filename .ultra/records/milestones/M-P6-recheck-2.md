@@ -1,8 +1,8 @@
 Reviewer: Claude reviewer subagent (round-3 context resumed), xhigh, round 3 re-check 2
 
-Scope: `ef37b09` on `m-p6`, diff `8c87da7..ef37b09`. The only commit after it, `69afcc9`, changes 2 files under `.ultra/ledger/` and 16 under `.ultra/records/`. Nothing else (`git diff --name-only ef37b09 69afcc9`). The repository is still at HEAD `69afcc9`, clean.
+Scope: `ef37b09` on `m-p6`, diff `8c87da7..ef37b09`. The only commit after it, `69afcc9`, changes 2 files under `.ultra/ledger/` and 16 under `.ultra/records/`. Nothing else (`git diff --name-only ef37b09 69afcc9`). The repository is still at HEAD `69afcc9`, clean. All probes ran on copies under `/tmp/p6r3.O8ESAE/` using the engine from a clone of `ef37b09` (`/tmp/p6r3.O8ESAE/clone5`). I only read the A7 round-4 repo and stream.
 
-(Recorded by the controller verbatim. Like `M-P6-recheck-1.md`, this re-check is not a review round; it checks option A, which the Owner chose after the first re-check.) All probes ran on copies under `/tmp/p6r3.O8ESAE/` using the engine from a clone of `ef37b09` (`/tmp/p6r3.O8ESAE/clone5`). I only read the A7 round-4 repo and stream.
+(Recorded by the controller verbatim. Like `M-P6-recheck-1.md`, this re-check is not a review round; it checks option A, which the Owner chose after the first re-check.)
 
 ## Blocking findings
 
