@@ -34,15 +34,15 @@ The package version is 6.1.0-rc.0 until this is released.
   `.ultra/records/milestones/<id>-review.md` (`review-not-for-milestone`).
 - `ubp drive --json` writes every event line to stderr, so a watcher sees each node finish;
   stdout holds only the final JSON.
-- The method's milestone review checks the spec against the Owner's recorded words and uses the
-  product through its user documentation, which is now a requirement like any other (on
-  existing code, when the work changes how a user installs, runs, configures or recovers it); the
-  controller reports the status line after every node and gate step and relays each line of
-  a running drive once (in Claude Code through the Monitor tool, stopped when the drive
-  ends); the handling of drive stops, the drive lock and merge refusals moved to
-  `skills/ultra/references/`, read when needed. The reviewer's instructions are one file,
-  `skills/ultra/references/review.md`, that the Skill's gate and the example reviewer both
-  read.
+- The method's milestone review checks the spec against the Owner's recorded words and uses
+  the product through its user documentation, which is now a requirement like any other (on
+  existing code, when the work changes how a user installs, runs, configures or recovers it,
+  or a behavior it already describes); the controller reports the status line after every node
+  and gate step and relays each line of a running drive once (in Claude Code through the
+  Monitor tool, stopped when the drive ends); the handling of drive stops, the drive lock and
+  merge refusals moved to `skills/ultra/references/`, read when needed. The reviewer's
+  instructions are one file, `skills/ultra/references/review.md`, that the Skill's gate and
+  the example reviewer both read.
 - A check's `expect` now matches a test's `✔ <name>` line in the method and
   `engine/FORMATS.md`: `node --test` reports a file or a name filter that ran no test as one
   passing test (Node 22 and 25), so the old `pass [1-9]` example could not tell that nothing

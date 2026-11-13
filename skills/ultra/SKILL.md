@@ -135,10 +135,12 @@ becomes an invariant, and a convention every check relies on goes in the spec's
 - How a user installs, runs, configures and recovers the product is user-observable too: make
   the user documentation (for example the README) a requirement whose `Done when` a new user
   can follow (on existing code, when this work changes how a user installs, runs, configures
-  or recovers it), and change it whenever a behavior it describes changes. Its check reads the
-  documentation from inside a test file: a file a check's `run` names is off limits to every
-  drive writer (`check-touched`). A constraint a handoff reports that a user must know (for
-  example "two servers must not share one data file") is an L1 change of that requirement.
+  or recovers it, or a behavior it already describes), and change it whenever a behavior it
+  describes changes. Its check reads the documentation from inside a test file: a file a
+  check's `run` names is off limits to every drive writer (`check-touched`). A constraint a
+  handoff reports that a user must know (for example "two servers must not share one data
+  file") is an L1 change of that requirement (on existing code without one, of the requirement
+  it constrains).
 
 Checks (acceptance author, never the writer):
 
@@ -244,16 +246,15 @@ choosing a layer.
 When `next` is `里程碑门`:
 
 1. When this milestone's tests wait in its own test directory (Start step 1), first add that
-   directory to the project's test command and to the invariant's `run` (or drop its
-   exclusion), with a ruling that quotes the `run` before and after (the engine records no
-   plan change for an invariant); `ubp gate`, commit. Then `ubp check --all`. Every check
-   covering a requirement of this milestone or of a closed milestone, and every invariant,
-   must be green; checks of later milestones may be red.
-   Then repeat it in a clean checkout of HEAD (`git worktree add --detach <temp> HEAD`,
-   install what the project needs, `ubp check --all --root <temp>`, then
-   `git worktree remove --force <temp>`): a fix that lives only in a file Git ignores or
-   hides passes here while HEAD lacks it. A check green here and red there is a stop: find
-   the file and commit it. Then `ubp retro` (see "Keeping it tidy").
+   directory to the project's test command and to the invariant's `run` (or drop its exclusion),
+   with a ruling that quotes the `run` before and after (the engine records no plan change for
+   an invariant); `ubp gate`, commit. Then `ubp check --all`. Every check covering a requirement
+   of this milestone or of a closed milestone, and every invariant, must be green; checks of
+   later milestones may be red. Then repeat it in a clean checkout of HEAD
+   (`git worktree add --detach <temp> HEAD`, install what the project needs,
+   `ubp check --all --root <temp>`, then `git worktree remove --force <temp>`): a fix that lives
+   only in a file Git ignores or hides passes here while HEAD lacks it. A check green here and
+   red there is a stop: find the file and commit it. Then `ubp retro` (see "Keeping it tidy").
 2. Whole-branch review. Give a reviewer who wrote none of the milestone's code the milestone
    id, the workspace, how to call `ubp`, and `references/review.md`, the one set of reviewer
    instructions: what it reads (the Owner's words and `.ultra/design.md` among them), how it
