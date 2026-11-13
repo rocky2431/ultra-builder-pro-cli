@@ -179,9 +179,11 @@ first (`45ef203`), then:
   own path means" (a glob that does not match it, pytest `--ignore`, a Go package list); plain
   `node --test`, pytest and `go test ./...` find it recursively otherwise. The red-baseline
   sentence no longer contradicts its cleanup exception.
-- Specification: the acceptance commit also checks that no test file it adds is in an
-  invariant's run (read from `run`), which colour alone misses when a red baseline is fixed by
-  a first cleanup node.
+- Specification: the acceptance commit also checks that no test it adds or rewrites red is in
+  an invariant's run (read from `run`), which colour alone misses when a red baseline is fixed
+  by a first cleanup node. (First written as "no test file this commit adds", which forbade a
+  green characterization test; corrected after the reviewer's confirmation.)
+- Gate step 1 says "(or drop its exclusion)" for runners that exclude by path.
 - Gate step 1: the join's ruling quotes the invariant's `run` before and after, since under
   drive the review comes before the join and the engine records no plan change for it.
 - SKILL.md: 394 lines.

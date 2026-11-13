@@ -155,10 +155,10 @@ Checks (acceptance author, never the writer):
   `describe` is indented), or another runner's line for a named test. A pass count is not
   enough: a file or a name filter that ran no test still prints `ℹ pass 1`.
 - Commit the test files before any implementation and run `ubp check`: every new check must be
-  red or unknown, no test file this commit adds is in an invariant's run (read its `run`), and
-  every invariant that was green before this commit is still green (a red one has a red test
-  in its run: Start step 1). A check that is green before the code exists proves nothing (a
-  characterization check of existing code is the one exception: it pins what already works).
+  red or unknown, no test this commit adds or rewrites red is in an invariant's run (read its
+  `run`), and every invariant that was green before this commit is still green (a red one has
+  a red test in its run: Start step 1). A check that is green before the code exists proves
+  nothing, except a characterization check of existing code, which pins what already works.
 - For each key requirement, break the finished implementation once and see its check fail.
 - A check never reads `.ultra/records/` or `.ultra/design.md`.
 
@@ -244,11 +244,11 @@ choosing a layer.
 When `next` is `里程碑门`:
 
 1. When this milestone's tests wait in its own test directory (Start step 1), first add that
-   directory to the project's test command and to the invariant's `run`, with a ruling that
-   quotes the `run` before and after (the engine records no plan change for an invariant);
-   `ubp gate`, commit. Then `ubp check --all`. Every check covering a requirement of this
-   milestone or of a closed milestone, and every invariant, must be green; checks of later
-   milestones may be red.
+   directory to the project's test command and to the invariant's `run` (or drop its
+   exclusion), with a ruling that quotes the `run` before and after (the engine records no
+   plan change for an invariant); `ubp gate`, commit. Then `ubp check --all`. Every check
+   covering a requirement of this milestone or of a closed milestone, and every invariant,
+   must be green; checks of later milestones may be red.
    Then repeat it in a clean checkout of HEAD (`git worktree add --detach <temp> HEAD`,
    install what the project needs, `ubp check --all --root <temp>`, then
    `git worktree remove --force <temp>`): a fix that lives only in a file Git ignores or
