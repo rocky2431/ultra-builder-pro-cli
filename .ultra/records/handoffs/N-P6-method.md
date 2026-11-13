@@ -151,3 +151,24 @@ first (`45ef203`), then:
 
 - Whether a fresh session follows the red-test rule when it adds a behavior and changes a
   pinned one: the A7 rerun of the existing-codebase trial judges it.
+
+## Rework after the round-3 re-check: option A (2026-11-12)
+
+- The Owner chose A ("选A吧"). Start step 1: the invariant is the project's own test command
+  and passes when registered (a red baseline left out, or a first cleanup node); every test
+  this work adds or rewrites red waits in the milestone's own test directory, which the
+  invariant's glob does not match. The skip filter on a name prefix is gone: a new test file
+  that loads a module not yet written fails before any filter applies (re-check point 2,
+  reproduced on Node 22 and 25).
+- Specification: after the acceptance commit, every invariant that was green is still green;
+  a red one has a red test in its run. This catches every route, whatever the runner does.
+- Milestone gate step 1: first add the milestone's directory to the project's test command and
+  the invariant's `run`, with a ruling (an invariant belongs to no milestone, so the gate
+  records no plan change); then `check --all`. Probed on a copy of the A7 round-3 project:
+  `gate: pass`, every check green again, `npm test` 50 → 59 tests.
+- README (both), CHANGELOG, the "a new behavior" row. SKILL.md: 391 lines.
+
+## Pinned by no check (option A)
+
+- Whether a fresh session does the join at gate step 1 from the text alone: the A7 rerun, which
+  now runs through gate step 1, judges it.

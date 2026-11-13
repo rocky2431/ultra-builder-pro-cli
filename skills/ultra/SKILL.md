@@ -65,18 +65,20 @@ in their own words. Four steps, in order; each writes a file, and the next step 
    reads only committed code. Read what is there: `git log`, the layout, how it is built, run
    and tested, its tests and its docs. Write `.ultra/design.md` (see "Project knowledge"): its
    `## System` says how the system is built, run and tested today. For existing code, also:
-   - run the existing tests and time them, then register their command (the runner and a
-     glob, not a list of files, so tests added later join it) as an invariant: a check with
-     `covers: []`, a `fix` and a `timeout_sec` above the measured run (see "Keeping it
-     tidy"), so every node keeps what already passes;
-   - a test that is red now stays out of the invariant's run, in a directory its glob does
-     not match or behind the runner's skip filter on a name prefix: in the run, it refuses
-     every node planned before the one that turns it green. That covers a new requirement's
-     test, a test that pins a behavior this work changes (moved out of the invariant into the
-     requirement's check, rewritten to the new behavior and committed red) and a red baseline
-     (tests already red or flaky, noted under `## Facts`), unless the milestone's first node is
-     a cleanup node (`"kind": "cleanup"`) that fixes it. Where no test pins what surrounds a
-     change, add a characterization check of what must stay the same, committed green;
+   - run the existing tests and time them, then register the project's own test command (the
+     runner and a glob, not a list of files, so tests added later join it) as an invariant: a
+     check with `covers: []`, a `fix` and a `timeout_sec` above the measured run (see
+     "Keeping it tidy"), so every node keeps what already passes. It passes when registered:
+     a red baseline (tests already red or flaky, noted under `## Facts`) is left out of its
+     run, unless the milestone's first node is a cleanup node (`"kind": "cleanup"`) that fixes it;
+   - every test this work adds or rewrites red waits in the milestone's own test directory,
+     which the invariant's glob does not match (for example `test/m4/` beside
+     `test/*.test.cjs`): in the invariant's run it would refuse every node planned before the
+     one that turns it green. That holds for a new requirement's test and for a test that pins
+     a behavior this work changes, which moves out of the invariant into the requirement's
+     check, rewritten to the new behavior and committed red. At the milestone gate the
+     directory joins the project's test command and the invariant. Where no test pins what
+     surrounds a change, add a characterization check of what must stay the same, committed green;
    - requirements cover what this work adds or changes, not the whole existing system;
      the invariant and the characterization checks keep the rest.
 2. **Investigate (planner), only what decides something.** List the unknowns whose answer
@@ -151,8 +153,10 @@ Checks (acceptance author, never the writer):
   `describe` is indented), or another runner's line for a named test. A pass count is not
   enough: a file or a name filter that ran no test still prints `ℹ pass 1`.
 - Commit the test files before any implementation and run `ubp check`: every new check must be
-  red or unknown. A check that is green before the code exists proves nothing (a
-  characterization check of existing code is the one exception: it pins what already works).
+  red or unknown, and every invariant that was green before this commit is still green (a red
+  one has a red test in its run: Start step 1). A check that is green before the code exists
+  proves nothing (a characterization check of existing code is the one exception: it pins
+  what already works).
 - For each key requirement, break the finished implementation once and see its check fail.
 - A check never reads `.ultra/records/` or `.ultra/design.md`.
 
@@ -237,8 +241,11 @@ choosing a layer.
 
 When `next` is `里程碑门`:
 
-1. `ubp check --all`. Every check covering a requirement of this milestone or of a closed
-   milestone, and every invariant, must be green; checks of later milestones may be red.
+1. When this milestone's tests wait in its own test directory (Start step 1), first add that
+   directory to the project's test command and to the invariant's `run`, with a ruling;
+   `ubp gate`, commit. Then `ubp check --all`. Every check covering a requirement of this
+   milestone or of a closed milestone, and every invariant, must be green; checks of later
+   milestones may be red.
    Then repeat it in a clean checkout of HEAD (`git worktree add --detach <temp> HEAD`,
    install what the project needs, `ubp check --all --root <temp>`, then
    `git worktree remove --force <temp>`): a fix that lives only in a file Git ignores or
@@ -281,7 +288,7 @@ Name the layer before touching any file, then follow its row. Every row ends wit
 
 | Difference | Layer | What you do | What the engine does |
 |---|---|---|---|
-| a new behavior | L1 add | spec block, a red check (commit it before code, its test outside every invariant's run: Start step 1), a node; gate | new node `ready`; no other node changes state; every check is stale until `ubp check` (the new check file is code) |
+| a new behavior | L1 add | spec block, a red check (commit it before code, its test outside every invariant's run until the milestone gate: Start step 1), a node; gate | new node `ready`; no other node changes state; every check is stale until `ubp check` (the new check file is code) |
 | a behavior changes | L1 modify | edit the block, its checks; a test inside an invariant that pins the old behavior moves into the requirement's check first (Start step 1); gate | only nodes covering it turn `stale`; brief a writer with the new `ubp context` |
 | a behavior goes away or asks for less | L1 reduce | ask the Owner first (touch `reduction`); `ubp approve <milestone>/<id>… --owner "<words>"` (add `--proxy` when you answered for them); then edit | the gate refuses (`reduction-unapproved`) any dropped requirement, dropped check or narrowed check coverage without that record |
 | how it is built changes | L2 | a ruling; edit `.ultra/design.md` and the plan (usually a new node, or new `depends`); gate | the new node runs; requirement texts are unchanged, so no other node turns stale |
