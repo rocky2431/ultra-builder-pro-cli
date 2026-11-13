@@ -35,7 +35,8 @@ The package version is 6.1.0-rc.0 until this is released.
 - `ubp drive --json` writes every event line to stderr, so a watcher sees each node finish;
   stdout holds only the final JSON.
 - The method's milestone review checks the spec against the Owner's recorded words and uses the
-  product through its user documentation, which is now a requirement like any other; the
+  product through its user documentation, which is now a requirement like any other (on
+  existing code, when the work changes how a user installs, runs, configures or recovers it); the
   controller reports the status line after every node and gate step and relays each line of
   a running drive once (in Claude Code through the Monitor tool, stopped when the drive
   ends); the handling of drive stops, the drive lock and merge refusals moved to
