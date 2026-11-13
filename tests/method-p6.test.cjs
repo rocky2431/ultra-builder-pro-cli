@@ -172,6 +172,11 @@ test('a documentation check and a copied example reviewer keep a drive going', (
   // Owner, 2026-11-13 ("不要留尾巴"): on existing code the documentation is a requirement when
   // this work changes how a user installs, runs, configures or recovers it (Start step 1).
   assert.ok(spec.includes('on existing code, when this work changes how a user installs'), spec);
+  // Re-check 3 (M-P6-recheck-3.md): a README that describes a behavior this work changes is a
+  // requirement too, and without documentation a user-facing constraint goes to the
+  // requirement it constrains.
+  assert.ok(spec.includes('or a behavior it already describes'), spec);
+  assert.ok(spec.includes('without one, of the requirement it constrains'), spec);
   const drive = flat(read(SKILL_DIR, 'references', 'drive.md'));
   assert.ok(drive.includes('UBP_REVIEW_GUIDE'), 'drive.md names the guide variable');
 });

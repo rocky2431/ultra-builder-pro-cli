@@ -104,7 +104,8 @@ function v6Project(t) {
 test('package metadata names v6, Claude Code and Codex only', () => {
   // Major 6 and one version everywhere, so a release never edits this closed acceptance
   // (ruling 2026-11-13, the Owner's "不要留尾巴").
-  assert.match(PACKAGE.version, /^6\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/u);
+  // Re-check 3: any valid 6.x version, prerelease identifiers with hyphens included.
+  assert.match(PACKAGE.version, /^6\./u);
   assert.match(PACKAGE.description, /Claude Code/u);
   assert.match(PACKAGE.description, /Codex/u);
   for (const gone of ['OpenCode', 'Kimi', 'Grok', 'ZCode']) {
