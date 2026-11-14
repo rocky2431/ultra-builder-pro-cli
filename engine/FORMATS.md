@@ -15,6 +15,7 @@ contains `.ultra/`.
 | Path | Layer | Written by |
 |---|---|---|
 | `.ultra/spec.md` | L1 behavior specification | planner (model); Owner confirms |
+| `.ultra/design.md` | current project knowledge | planner (model); never a writer |
 | `.ultra/checks.json` | acceptance check registry | acceptance author (model) |
 | `.ultra/plan.json` | L3 milestones and task graph | planner (model) |
 | `.ultra/rulings.md` | ruling log | any role, append only |
@@ -39,15 +40,17 @@ Missing ledger files mean "no records". Missing `rulings.md` means "no rulings".
 `spec.md`, `checks.json` and `plan.json` are required. `.ultra/.runtime/` is never committed.
 
 The engine-owned paths are `.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`,
-`.ultra/rulings.md`, `.ultra/ledger/`, `.ultra/records/` and `.ultra/.runtime/`. Everything
-else, including other files under `.ultra/` such as check scripts, is code (see "Git
-state"). A check must not read files under `.ultra/records/`: editing a record never
-invalidates evidence, so a check that read one could stay green after the record changed.
+`.ultra/design.md`, `.ultra/rulings.md`, `.ultra/ledger/`, `.ultra/records/` and
+`.ultra/.runtime/`. Everything else, including other files under `.ultra/` such as check
+scripts, is code (see "Git state"). A check must not read `.ultra/design.md` or files under
+`.ultra/records/`: editing them never invalidates evidence, so a check that read one could
+stay green after it changed.
 
-Reading a record file (a milestone review or a handoff): the engine reads it only when its
-parent directory exists and resolves, through symbolic links, inside the root (both paths
-compared after resolving), and the file, opened without following a symbolic link in its
-last component and without blocking, is a regular file. A symbolic link, a FIFO, a device
+Reading a record file (a milestone review, a handoff or `.ultra/design.md`): the engine
+reads it only when its parent directory exists and resolves, through symbolic links,
+inside the root (both paths compared after resolving), and the file, opened without
+following a symbolic link in its last component and without blocking, is a regular file.
+A symbolic link, a FIFO, a device
 or a directory at that path is never read. Git stores symbolic links, so a cloned project
 can carry one; this rule keeps a record from pulling a file from outside the project into
 the engine's output, and from making a command wait.
@@ -117,14 +120,23 @@ change to it invalidates as if every requirement had changed (see "States"). A c
 that concerns one requirement belongs in that requirement's block, where changing it
 invalidates only that requirement.
 
+## `.ultra/design.md` — project knowledge
+
+The planner maintains the project's current understanding here: how the system is built,
+run and tested (including an existing codebase's baseline), the design decisions in force,
+and facts settled by investigation with their sources. Writers never edit it. Writing or
+committing it never dirties the code tree or invalidates evidence. It is read into the
+node brief as a handoff is read (see "Node brief").
+
 ## `.ultra/checks.json` — check registry
 
 ```json
 {
   "version": 1,
   "checks": [
-    { "id": "C-add", "covers": ["REQ-001"], "run": "node --test test/add.test.js",
-      "timeout_sec": 120, "expect": "pass [1-9]" }
+    { "id": "C-add", "covers": ["REQ-001"],
+      "run": "node --test --test-reporter=spec test/add.test.js",
+      "timeout_sec": 120, "expect": "^\\s*✔ adds an item" }
   ]
 }
 ```
@@ -141,8 +153,11 @@ invalidates only that requirement.
 - `expect`: required, non-empty regular expression source (JavaScript, flags `mu`) that
   does not match the empty string (`^`, `x*` and `(?:)` are malformed). A zero exit counts
   as a pass only when the output tail matches it. It is the acceptance author's statement
-  of what proves that the check really ran, for example `pass [1-9]` for `node --test`,
-  so a test filter that matched nothing never passes.
+  of what proves that the check really ran, for example `^\s*✔ <test name>`, the spec
+  reporter's line for a test the check relies on (indented inside `describe`), or another
+  runner's line for a named test. A pass count such as `pass [1-9]` does
+  not prove it: `node --test` (checked on Node 22.21.0 and 25.7.0) reports a file or a
+  name filter that ran no test as one passing test.
 
 Check fingerprint: SHA-256 hex of `JSON.stringify([run, effectiveTimeoutSec, expect])`.
 `covers` is not part of the fingerprint; requirement links are tracked per requirement.
@@ -236,6 +251,9 @@ gives all three such content (so a reason may start with `代价`), and a reason
 - Usage errors (exit 2), each with its own message and hint: `--root` does not exist; the
   directory is not inside a Git work tree (hint: `git init`); the repository has no commit
   (hint: commit the code first).
+- With a commit but no `.ultra/spec.md`, every command exits 2 with
+  `<root> has not started: .ultra/spec.md does not exist. Start it with the ultra Skill.`,
+  reports no `ENOENT` and writes nothing.
 - A Git command the engine expects to succeed that fails for another reason (identity,
   a hook, signing, a broken repository) exits 2 with the message
   `Git failed: <arguments>: <first non-empty line of Git's standard error>` (only the
@@ -442,8 +460,11 @@ Next item, in this order:
 4. `里程碑门` when there is a current milestone and every one of its nodes is done;
 5. otherwise `无（受阻）`.
 
-Closed not green: the number of requirements of closed milestones other than the current
-milestone whose state is not green.
+Closed recheck: the number of requirements of closed milestones other than the current
+milestone whose state is `stale` while the latest record of every covering check has
+outcome `pass`. Closed not green: every other requirement of those milestones whose state
+is not `green`. These counts are separate; a stale requirement whose latest check run
+failed or was unknown is not a recheck.
 
 Plan changes of the current milestone: the number of `change` and `removed` records, of
 any milestone, whose `at` is later than the greatest `at` in `milestones.jsonl` (all
@@ -456,7 +477,7 @@ run would record something; otherwise `pass`.
 ## Progress line
 
 ```
-<M> · <green>/<total> 绿[ · <n> 红][ · <n> 过期][ · <n> 未知][ · <n> 未覆盖] · 下一项 <next> · 本里程碑计划变更 <k> 次[ · 不变量 <n> 未绿][ · 已关闭里程碑 <n> 项未绿][ · 工作区未提交][ · 计划门未通过| · 计划门待重跑][ · drive 运行中]
+<M> · <green>/<total> 绿[ · <n> 红][ · <n> 过期][ · <n> 未知][ · <n> 未覆盖] · 下一项 <next> · 本里程碑计划变更 <k> 次[ · 不变量 <n> 未绿][ · 已关闭里程碑 <n> 项未绿][ · 已关闭里程碑 <n> 项待复核][ · 工作区未提交][ · 计划门未通过| · 计划门待重跑][ · drive 运行中]
 ```
 
 Counts cover the current milestone's requirements that exist in the spec; the five state
@@ -551,7 +572,7 @@ rulings (RESULT §3.9).
   records `proxy: true`, so it reads as not validated by the real Owner.
 - `--review`: the milestone review, a path relative to the project root. An absolute path,
   one that leaves the root, and one that names the root itself (`.`) are usage errors. The
-  reviewer is never the author of the milestone's code; the recommended place is
+  reviewer is never the author of the milestone's code; an accepting review must be at
   `.ultra/records/milestones/<id>-review.md`. The closure records the path relative to the
   root without `.` or `..` segments, with `/` separators (`./.ultra/records/x.md` is
   recorded as `.ultra/records/x.md`).
@@ -574,6 +595,10 @@ order:
 | `invariant-not-green` | an invariant is not green; one problem per invariant, its hint the invariant's `fix` when its state is `red`, otherwise ``Run `ubp check <id>`.`` (a stale or unknown invariant has not been run on this code, so its `fix` would mislead) |
 | `review-missing` | the review cannot be read under "Reading a record file" (see "Layout"): nothing is there, or it is a symbolic link, a FIFO, a directory or another file that is not regular, or its parent directory does not exist or resolves outside the root |
 | `review-not-accepted` | the review is a regular file, but outside fences (see "Markdown rules") it does not hold exactly one line starting with `Verdict:`, or that line, without trailing whitespace, is not `Verdict: accept` (lines end at LF; a CR before it is trailing whitespace; a UTF-8 byte order mark at the start of the file is ignored) |
+| `review-not-for-milestone` | the review is accepting, but its normalized path is not `.ultra/records/milestones/<id>-review.md`; the hint names that path |
+
+Review readability is checked before its verdict and path: a missing or unreadable review
+adds only `review-missing`, never `review-not-for-milestone`.
 
 The bytes that were checked are the bytes that are hashed. A FIFO at the review path is
 `review-missing` at once, never a wait while the lock is held. With no problem the command appends
@@ -602,6 +627,14 @@ same bytes. Layout, with the sections in this order:
 
 Milestone <milestone id>: <milestone title> · node state <state>
 
+## Project
+
+<spec shared text>
+
+### .ultra/design.md
+
+<design text>
+
 ## Requirements
 
 <requirement text>
@@ -628,6 +661,13 @@ Milestone <milestone id>: <milestone title> · node state <state>
 - Milestone line: when the node's milestone is not in `plan.json`, it reads
   `Milestone <milestone id>: not in .ultra/plan.json · node state <state>` (the plan gate
   reports it).
+- Project: the spec's lines outside requirement blocks, in file order, after CRLF→LF,
+  trailing whitespace removed from every line and only leading and trailing empty lines
+  dropped (internal empty lines remain; the shared hash still drops every empty line).
+  Then an empty line, `### .ultra/design.md`, an empty line, and the design text read and
+  normalized as a handoff below. A missing or empty design reads `No design written.`;
+  a design that cannot be read as a record reads
+  `Not read: not a regular file inside the project.`
 - Requirements: each covered requirement's text, as defined for its hash, in the node's
   `covers` order, separated by one empty line; with none (a cleanup node), the single line
   `None.` A covered id absent from the spec appears
@@ -655,7 +695,7 @@ Milestone <milestone id>: <milestone title> · node state <state>
 - The brief ends with exactly one newline; text mode writes it to stdout unchanged.
 
 ```text
-- Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/ledger/ or the files the checks above run. If a check or a requirement looks wrong, stop and escalate.
+- Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/design.md, .ultra/ledger/ or the files the checks above run. If a check or a requirement looks wrong, stop and escalate.
 - Change only files inside the scope, and commit your work: evidence from an uncommitted tree never counts.
 - Run `ubp check <checks>` until every check above is green, then `ubp check` (every stale check: invariants and finished requirements must stay green), then `ubp node done <id>`.
 - Escalate instead of deciding: a change of direction (L0) and any deletion or narrowing of a requirement go to the Owner.
@@ -670,10 +710,11 @@ from the last dependency, by the line
 `Omitted to fit the budget: read .ultra/records/handoffs/<dependency>.md`, until the brief
 fits. Only a handoff read from a file whose text is longer in UTF-8 bytes than its
 replacement line is replaced; the others are skipped. So every omission makes the brief
-smaller and points at a file that exists. Requirements, checks and rules are never cut:
-when the brief still does not fit, `context` writes nothing to stdout and exits 1 with the
+smaller and points at a file that exists. Project knowledge, requirements, checks and
+rules are never cut: when the brief still does not fit, `context` writes nothing to
+stdout and exits 1 with the
 problem `brief-over-budget`, whose message names the size and the budget and whose hint is
-to split the node; text mode prints the problem on stderr.
+to shorten `.ultra/design.md` or split the node; text mode prints the problem on stderr.
 
 ## Retro
 
@@ -931,11 +972,12 @@ starts with `Reviewer: ` and exactly one line outside fences is `Verdict: accept
 the verdict. It never closes a milestone, approves anything or writes
 `.ultra/records/owner-touches.md`: those are the Owner's.
 
-`<run>` is a fresh UUID. The drive first prints `drive: run <run>` (on stderr with
-`--json`). In text mode it then prints each step as it ends, `drive: <action> <subject>:
+`<run>` is a fresh UUID. The drive first prints `drive: run <run>`. It then prints each
+step as it ends, `drive: <action> <subject>:
 <result>`, with ` (exit <exit>)` appended for writer and reviewer steps; at the stop, the
 stopping problems as `check` prints them (`<code>: <message> — <hint>`, one per line) and
-last `drive: stop <reason>`. With `--json` it prints at the end
+last `drive: stop <reason>`. These lines go to stdout in text mode and stderr with
+`--json`, at the same points in the run. With `--json`, stdout holds only the final
 `{ run, stop, verdict, steps: [{ action, subject, attempt, result, exit, problems }],
 problems }`, where `action` is `gate`, `check`, `context`, `writer` or `reviewer` (nothing
 else is a step), `exit` is null for steps without a shell, `verdict` is `accept`, `revise`
@@ -946,7 +988,7 @@ verify a writer belong to its `writer` step. Exit 0 when the stop is `all-done`,
 engine failures; 130, 143 or 129 when interrupted by SIGINT, SIGTERM or SIGHUP (the running
 writer or reviewer is stopped first; text mode has already printed the steps so far).
 Ceiling: with `--json`, an interrupted or failed drive prints no result; its run id on
-stderr locates the logs.
+stderr locates the logs, and stderr retains every step printed before the failure.
 
 Before its first round the drive takes `.ultra/.runtime/drive.lock`, created and broken as
 `engine.lock` is in "Concurrency" (with `drive.lock.break`), and it removes the lock when its
@@ -1003,7 +1045,8 @@ options may follow in any order. `--root` defaults to the current directory.
 
 `status --json` returns
 `{ milestone, line, counts: {total, green, red, stale, unknown, uncovered}, next,
-plan_changes, closed_not_green, gate, problems, warnings, dirty, drive, requirements: [{id,
+plan_changes, closed_not_green, closed_recheck, gate, problems, warnings, dirty, drive,
+requirements: [{id,
 milestone, state, reasons, checks: [{id, state, reasons}]}], checks: [{id, state, reasons,
 last_run}], nodes: [{id, milestone, state, reasons}], invariants: [{id, state, reasons,
 fix}] }`; invariants appear in `checks` too, in registry order. `drive` is the pid of the

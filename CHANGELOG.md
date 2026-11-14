@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+The package version is 6.1.0-rc.0 until this is released.
+
+- Start any project, empty or with existing code, in four steps: survey what exists,
+  investigate only the unknowns whose answer changes a requirement, a check or the plan,
+  interview the Owner for the rest, and have the Owner confirm the Direction and every
+  `Done when` line. For existing code, the existing test command (the runner and a glob)
+  becomes an invariant after a baseline run, and a characterization check pins what must stay
+  the same around a change. Every test this work adds or rewrites red (a new requirement's
+  test, or a test that pins a behavior the Owner wants changed) waits in the milestone's own
+  test directory, outside the invariant's run: inside it, it refused every node planned before
+  the one that turns it green. After the acceptance commit, every invariant that was green is
+  still green; at the milestone gate the directory joins the project's own test command and
+  the invariant. A red baseline is left out, unless a first cleanup node fixes it. A
+  project that has a spec but no `.ultra/design.md` gets one from a survey before its next
+  node, never while a drive runs.
+- Add `.ultra/design.md`, the project's current knowledge: `## System`, `## Decisions` and
+  `## Facts`. The planner keeps it and writers never edit it; it is engine-owned, so editing or
+  committing it never stales evidence. `ubp context` puts a `## Project` section in every brief
+  with the spec's shared text (Direction, Interface) and the design, and a brief over budget
+  names the design as a place to shorten.
+- `ubp status` tells `已关闭里程碑 n 项待复核` (stale after a commit while the latest run of
+  every covering check passed; `closed_recheck` in `--json`) apart from `未绿`. In a project
+  that has not started, every command says so instead of printing a raw `ENOENT`.
+- `ubp milestone close` refuses an accepting review that is not
+  `.ultra/records/milestones/<id>-review.md` (`review-not-for-milestone`).
+- `ubp drive --json` writes every event line to stderr, so a watcher sees each node finish;
+  stdout holds only the final JSON.
+- The method's milestone review checks the spec against the Owner's recorded words and uses
+  the product through its user documentation, which is now a requirement like any other (on
+  existing code, when the work changes how a user installs, runs, configures or recovers it,
+  or a behavior it already describes); the controller reports the status line after every node
+  and gate step and relays each line of a running drive once (in Claude Code through the
+  Monitor tool, stopped when the drive ends); the handling of drive stops, the drive lock and
+  merge refusals moved to `skills/ultra/references/`, read when needed. The reviewer's
+  instructions are one file, `skills/ultra/references/review.md`, that the Skill's gate and
+  the example reviewer both read.
+- A check's `expect` now matches a test's `✔ <name>` line in the method and
+  `engine/FORMATS.md`: `node --test` reports a file or a name filter that ran no test as one
+  passing test (Node 22 and 25), so the old `pass [1-9]` example could not tell that nothing
+  ran. Found by a headless start trial.
+- The engine's line budget is 2050 (Owner, 2026-11-12).
+
 ## [6.0.0] — 2026-11-04
 
 - Start in Claude Code with `/ultra` (full name `/ultra-builder-pro:ultra`),

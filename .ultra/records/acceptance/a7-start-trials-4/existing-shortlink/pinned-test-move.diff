@@ -1,0 +1,74 @@
+commit 8ca2068807911b9adc0fbed82a72a18b843011c9
+Author: Owner <owner@example.invalid>
+Date:   Thu Nov 12 18:37:47 2026 -0800
+
+    M4 acceptance tests: total visits and 410 已删除 (red)
+    
+    test/m4/ holds the milestone's new checks, red until implemented:
+    C-total-visits, C-deleted and the journey C-journey-m4. The test that
+    pinned 'a deleted short link answers 404' moves from test/delete.test.cjs
+    into C-deleted, rewritten to 410; a characterization test of what a
+    delete keeps (list, page, API detail 404, second DELETE 404, after a
+    restart) takes its place in the existing suite.
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+diff --git a/test/delete.test.cjs b/test/delete.test.cjs
+index ee72653..da812ee 100644
+--- a/test/delete.test.cjs
++++ b/test/delete.test.cjs
+@@ -5,7 +5,7 @@ const test = require('node:test');
+ const assert = require('node:assert/strict');
+ const fs = require('node:fs');
+ const path = require('node:path');
+-const { tempData, start, createLink, list, visit } = require('./helpers.cjs');
++const { tempData, start, createLink, list, visit, page, row } = require('./helpers.cjs');
+ 
+ const NO_SUCH = '没有这个短链接。';
+ 
+@@ -15,17 +15,34 @@ async function remove(base, code) {
+   return { status: res.status, text };
+ }
+ 
+-test('REQ-delete: a deleted link leaves the list and its short link answers 404', async (t) => {
+-  const { base } = await start(t);
+-  const keep = (await createLink(base, { url: 'https://example.com/keep' })).body;
+-  const drop = (await createLink(base, { url: 'https://example.com/drop' })).body;
+-  const res = await remove(base, drop.code);
+-  assert.equal(res.status, 204);
+-  assert.equal(res.text, '', 'no body');
+-  assert.deepEqual((await list(base)).body.map((l) => l.code), [keep.code]);
+-  assert.equal((await visit(base, drop.code)).status, 404);
+-  assert.equal((await visit(base, keep.code)).status, 302, 'other links still work');
+-});
++// Characterization (M4): what a delete keeps, whatever the short link answers afterwards. It
++// replaces the test that pinned "its short link answers 404", now test/m4/deleted.test.cjs.
++test('REQ-delete: a deleted link leaves the list, the page and its detail, also after a restart',
++  async (t) => {
++    const first = await start(t);
++    const keep = (await createLink(first.base, { url: 'https://example.com/keep' })).body;
++    const drop = (await createLink(first.base, { url: 'https://example.com/drop' })).body;
++    const res = await remove(first.base, drop.code);
++    assert.equal(res.status, 204);
++    assert.equal(res.text, '', 'no body');
++    const gone = async (base, when) => {
++      assert.deepEqual((await list(base)).body.map((l) => l.code), [keep.code], when);
++      const html = (await page(base)).text;
++      assert.equal(row(html, drop.code), null, `${when}: not on the page`);
++      assert.ok(row(html, keep.code), `${when}: the other link is`);
++      const detail = await fetch(`${base}/api/links/${drop.code}`);
++      assert.equal(detail.status, 404, when);
++      assert.deepEqual(await detail.json(), { error: NO_SUCH }, when);
++      assert.equal((await visit(base, keep.code)).status, 302, `${when}: other links still work`);
++    };
++    await gone(first.base, 'after the delete');
++    await first.stop('SIGKILL');
++    const second = await start(t, first.data);
++    await gone(second.base, 'after a restart');
++    const again = await remove(second.base, drop.code);
++    assert.equal(again.status, 404, 'a deleted link cannot be deleted again');
++    assert.deepEqual(JSON.parse(again.text), { error: NO_SUCH });
++  });
+ 
+ test('REQ-delete: the deletion is saved before the answer', async (t) => {
+   const first = await start(t);

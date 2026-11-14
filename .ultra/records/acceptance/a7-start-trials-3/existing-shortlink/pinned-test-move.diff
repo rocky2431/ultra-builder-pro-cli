@@ -1,0 +1,37 @@
+commit b0f30af4e9ceb083c723804b22f0f4c79ed50fe7
+Author: Owner <owner@example.invalid>
+Date:   Thu Nov 12 12:40:58 2026 -0800
+
+    M4 acceptance tests (red) and a deletion characterization test
+    
+    Adds test/m4/ (C-total, C-deleted, C-journey-m4), moves the
+    deleted-link-answers-404 assertion out of test/delete.test.cjs, adds
+    test/deleted-api.test.cjs to the existing suite, ignores .ultra/.runtime/
+    and union-merges the ledgers.
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+diff --git a/test/delete.test.cjs b/test/delete.test.cjs
+index ee72653..1aeea32 100644
+--- a/test/delete.test.cjs
++++ b/test/delete.test.cjs
+@@ -15,7 +15,9 @@ async function remove(base, code) {
+   return { status: res.status, text };
+ }
+ 
+-test('REQ-delete: a deleted link leaves the list and its short link answers 404', async (t) => {
++// What the deleted link's short link answers (410 已删除 since M4, 404 before) is pinned by
++// C-deleted in test/m4/deleted.test.cjs, not here.
++test('REQ-delete: a deleted link leaves the list and the other links still work', async (t) => {
+   const { base } = await start(t);
+   const keep = (await createLink(base, { url: 'https://example.com/keep' })).body;
+   const drop = (await createLink(base, { url: 'https://example.com/drop' })).body;
+@@ -23,7 +25,7 @@ test('REQ-delete: a deleted link leaves the list and its short link answers 404'
+   assert.equal(res.status, 204);
+   assert.equal(res.text, '', 'no body');
+   assert.deepEqual((await list(base)).body.map((l) => l.code), [keep.code]);
+-  assert.equal((await visit(base, drop.code)).status, 404);
++  assert.notEqual((await visit(base, drop.code)).status, 302, 'the deleted link redirects nowhere');
+   assert.equal((await visit(base, keep.code)).status, 302, 'other links still work');
+ });
+ 

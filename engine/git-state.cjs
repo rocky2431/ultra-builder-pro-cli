@@ -55,7 +55,7 @@ function gitAsync(root, args, options = {}) {
 }
 
 const ownedFiles = new Set(['.ultra/spec.md', '.ultra/checks.json',
-  '.ultra/plan.json', '.ultra/rulings.md']);
+  '.ultra/plan.json', '.ultra/design.md', '.ultra/rulings.md']);
 const ownedDirs = ['.ultra/ledger', '.ultra/records', '.ultra/.runtime'];
 const engineOwned = (name) => ownedFiles.has(name)
   || ownedDirs.some((dir) => name === dir || name.startsWith(`${dir}/`));
@@ -105,6 +105,10 @@ function projectRoot(requested) {
   catch (error) {
     if (error.exitCode) throw error;
     throw new Error(`${top} has no commit. Commit the code first.`);
+  }
+  if (!fs.existsSync(path.join(top, '.ultra/spec.md'))) {
+    throw new Error(`${top} has not started: .ultra/spec.md does not exist. `
+      + 'Start it with the ultra Skill.');
   }
   return top;
 }

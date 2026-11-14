@@ -868,6 +868,12 @@ async function gone(pid) {
     try { process.kill(pid, 0); } catch { return true; }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
+  // Diagnostics only: this gave up once in about 27 full runs on 2026-11-12 and never again
+  // in about 950 targeted rounds, so record what the process was (alive, a zombie, whose
+  // child) for the next occurrence.
+  const ps = spawnSync('ps', ['-o', 'pid,ppid,pgid,stat,etime,command', '-p', String(pid)],
+    { encoding: 'utf8' });
+  console.error(`gone(${pid}) gave up after 4 s:\n${ps.stdout}${ps.stderr}`);
   return false;
 }
 async function waitFor(fx, name) {

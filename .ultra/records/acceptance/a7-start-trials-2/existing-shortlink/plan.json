@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "milestones": [
+    {
+      "id": "M4",
+      "title": "Total visits on the page; deleted short links answer 410 已删除",
+      "requirements": ["REQ-total-visits", "REQ-deleted-410"],
+      "journey": "C-journey-m4"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "N-total-visits",
+      "milestone": "M4",
+      "title": "Total visits at the top of the page",
+      "covers": ["REQ-total-visits"],
+      "depends": [],
+      "scope": ["src/", "test/"]
+    },
+    {
+      "id": "N-deleted-410",
+      "milestone": "M4",
+      "title": "A deleted short link answers 410 已删除, across restarts",
+      "covers": ["REQ-deleted-410"],
+      "depends": ["N-total-visits"],
+      "scope": ["src/", "test/"]
+    }
+  ]
+}

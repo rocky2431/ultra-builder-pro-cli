@@ -1,0 +1,9 @@
+cc383bb Shortlink as it is today
+1851e6b M4 acceptance tests, red before implementation
+f7a751a M4 truth files: spec, checks, plan, design, rulings, records; gate passed
+8858816 Show the total of visits at the top of the page
+e7c2568 N-total-visits: rulings and handoff
+c751dd9 M4: N-total-visits done; fold its handoff into the design; ledger
+4c23051 Answer 410 已删除 for a deleted short link, also after a restart
+bfe0ade N-deleted-410: rulings and handoff
+5e157fe M4: N-deleted-410 done; fold its handoff into the design; ledger

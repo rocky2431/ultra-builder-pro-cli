@@ -101,21 +101,20 @@ async function drive(project, opts) {
     throw new Error('drive requires --writer <command> and an optional non-empty --reviewer.');
   const { root } = project;
   const result = { run: randomUUID(), stop: null, verdict: null, steps: [], problems: [] };
-  (opts.json ? console.error : console.log)(`drive: run ${result.run}`);
+  const print = opts.json ? console.error : console.log;
+  print(`drive: run ${result.run}`);
   const directory = path.join(root, '.ultra/.runtime/drive', result.run);
   const bin = path.join(directory, 'bin');
   const base = { UBP_ROOT: root, UBP_DRIVE: '1', PATH: `${bin}:${process.env.PATH ?? ''}`,
     UBP: [process.execPath, path.join(__dirname, 'cli.cjs')].map(quote).join(' ') };
   const record = (action, subject, attempt, value, problems = [], exit = null) => {
     result.steps.push({ action, subject, attempt, result: value, exit, problems });
-    if (!opts.json) console.log(`drive: ${action} ${subject}: ${value}`
+    print(`drive: ${action} ${subject}: ${value}`
       + (['writer', 'reviewer'].includes(action) ? ` (exit ${exit})` : ''));
   };
   const stop = (reason, problems = []) => {
-    if (!opts.json) {
-      for (const p of problems) console.log(`${p.code}: ${p.message} — ${p.hint}`);
-      console.log(`drive: stop ${reason}`);
-    }
+    for (const p of problems) print(`${p.code}: ${p.message} — ${p.hint}`);
+    print(`drive: stop ${reason}`);
     return Object.assign(result, { stop: reason, problems });
   };
   const release = acquireLock(root, 'drive');

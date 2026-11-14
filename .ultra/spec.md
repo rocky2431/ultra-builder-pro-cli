@@ -4,6 +4,29 @@ Requirements are the observable phase exits of `thinking/back-to-essentials-2026
 §5, as amended by the execution contract in §8. The engine computes their state; nobody
 writes progress by hand.
 
+## Direction
+North star (Owner, 2026-10-31):
+"集当前所有上下文工程、Harness 工程为一体的一个作品";
+"有控制、有进度，同时又不失灵活性，把整个事情做得井井有条，而且具有极高的辨识度";
+"能够用它产生真实、优雅且非常厉害的工程样本".
+The purposes of the earlier UBP, as the Owner named them (2026-10-30):
+"1. 自动化 2. 更好、更精确的意图识别与执行".
+Users: the Owner, who runs several projects at once,
+"有的项目是在已有代码上去做，有的是全新的" (2026-11-11); the hosts are Claude Code and Codex only
+(the confirmed v6 contract).
+Success (Owner, 2026-10-31): "只要最终能产出一个真正好用的东西就行". Done when the Owner can
+take it to a first real project; that first real sample is the real acceptance (the confirmed
+v6 contract). The Owner's complaints that success should end (the assistant's reading):
+"你不知道具体进度是什么" (2026-10-30) and, from 1 to 100, "越改越乱" (2026-10-31).
+Abandon: not stated by the Owner.
+Boundary: one method (`ultra`), one engine (`ubp`) and one advisory hook; no daemon, runner or
+Python hook (this repository's v6 product boundary, not the Owner's words). Push, tag, npm
+publishing and installing in the real HOME wait for the Owner: the v6 contract excludes
+"push、tag、npm 发布", and the M-P6 contract the Owner confirmed ("确认，确认") says
+"门通过后装进 ~/.claude，不 push、不发布".
+Accepted cost (2026-10-31): "它在 0 到 1 阶段可能会比较重，但这是我们可以接受的".
+Elegance: not stated by the Owner.
+
 ## REQ-P1-stale Editing one requirement invalidates only what depends on it
 After the text of one requirement in `.ultra/spec.md` changes, `ubp status` shows that
 requirement's linked checks and nodes as stale, and every other check and node keeps its
@@ -89,3 +112,83 @@ method), a copy of the engine that the Skill names by absolute path, and one Ses
 that prints the `ubp status` line in a project with `.ultra/spec.md` and nothing elsewhere;
 `--doctor` reports `healthy`, `--uninstall` leaves nothing the install created, and nothing
 of 5.x ships.
+
+## REQ-P6-knowledge A writer works from what the project knows
+`.ultra/design.md` holds the project's current understanding: how the system is built, run
+and tested (for an existing codebase, its baseline), the design decisions in force, and the
+facts settled by investigation with their sources. The planner owns it and writers never
+edit it. It is engine-owned: writing or committing it never makes the tree dirty and never
+makes a check stale. `ubp context <node>` puts a section `## Project` between the milestone
+line and `## Requirements`: the spec's shared text (its lines outside requirement blocks, in
+file order, after CRLF→LF, trailing whitespace removed from every line, leading and trailing
+empty lines dropped), an empty line, `### .ultra/design.md`, an empty line, and the design's
+text read as a handoff is read, or `No design written.` when there is none. The first rule
+of the brief names `.ultra/design.md` among the files a writer must not edit. When the brief
+still exceeds its budget after the handoffs are shortened, the refusal's hint names
+`.ultra/design.md` as a place to shorten.
+Done when: a writer's brief contains the Direction, the Interface and `.ultra/design.md`, and
+editing `.ultra/design.md` leaves every piece of evidence as it was (contract A1, A2).
+
+## REQ-P6-status The status says what needs rechecking apart from what is not green
+A requirement of a closed milestone other than the one the line names that is stale while
+the latest run of every check covering it passed is to be rechecked: `ubp status --json`
+counts it in `closed_recheck`, and the line says `已关闭里程碑 <n> 项待复核`. Every other
+requirement of a closed milestone other than the one the line names that is not green
+counts in `closed_not_green`, and the line says `已关闭里程碑 <n> 项未绿`. Each segment
+appears only when its count is not zero, `未绿` before `待复核`. `ubp drive --json` writes to
+stderr every line the text mode prints to stdout (the run, each action, each problem and
+the stop), so a watcher sees each node as it finishes; stdout holds only the final JSON.
+In a Git repository with a commit but without `.ultra/spec.md`, every command exits 2 with
+`<root> has not started: .ultra/spec.md does not exist. Start it with the ultra Skill.`,
+names no `ENOENT` and writes nothing.
+Done when: after a commit that touches only notes, the line says 待复核 instead of 未绿, a
+drive run with `--json` shows each node event on stderr, and `ubp status` in a project
+that has not started says so (contract A3, A5).
+
+## REQ-P6-close A milestone closes only on its own review
+`ubp milestone close <id> --review <path>` refuses an accepting review whose path, once
+normalized, is not `.ultra/records/milestones/<id>-review.md`, with the problem
+`review-not-for-milestone` and no closure. A review that is missing or cannot be read is
+still refused only as `review-missing`.
+Done when: closing a milestone with another milestone's accepting review is refused
+(contract A4).
+
+## REQ-P6-method The method starts any project and keeps its knowledge flowing
+The installed `ultra` Skill starts a project without `.ultra/spec.md`, new or with existing
+code, in four steps: survey what exists (for existing code, `## System` in
+`.ultra/design.md`, the existing test command registered as an invariant after a baseline
+run, and characterization checks before an unpinned behavior is changed); investigate only
+the unknowns whose answer changes a requirement, a check or the plan, recording each answer
+and its source in `.ultra/design.md`; interview the Owner for what investigation cannot
+settle; and have the Owner confirm the Direction and every `Done when` line. Every test this
+work adds or rewrites red (a new requirement's test, or a test that pins a behavior this work
+changes, rewritten to the new behavior) waits in the milestone's own test directory, outside
+the invariant's run, and after the acceptance commit every invariant that was green is still
+green, so no node is refused for a test a later node turns green; at the milestone gate that
+directory joins the project's own test command and the invariant. A red baseline stays out of
+the invariant's run unless a first cleanup node fixes it.
+A project with a spec but no `.ultra/design.md` gets
+one from a survey, never while a drive runs. The method says who writes and who reads
+`.ultra/design.md`; its escalation covers a fact nobody knows; its milestone review, one
+reference that the Skill's gate and the example reviewer both read, checks the spec against
+the Owner's recorded words and `.ultra/design.md` and uses the product through its user
+documentation, which is a requirement like any other; the controller reports the status line
+after every node and gate step and relays each line of a running drive once, watching it no
+longer than the drive runs; and every drive stop and merge refusal the engine can return is
+handled in a `references/` file the Skill names, keeping `SKILL.md` within 395 lines.
+Done when: the method covers the four start steps, the upkeep of `.ultra/design.md`, the
+escalation for an unknown fact, the review against the Owner's words, documentation as a
+requirement and progress reports, with drive, merge and review instructions in references
+and `SKILL.md` no longer than 395 lines, and a headless session that adds a behavior and
+changes one an existing test pins, following the method's text, reaches the milestone gate
+without a node refused by the invariant, and after gate step 1 the project's own test command
+runs the milestone's new tests (contract A6, A7).
+
+## REQ-P6-docs The README takes a new user from install to a closed milestone
+`README.md` and `README.zh-CN.md` say how to install for each host, how to start a new or
+existing project, what `待复核` and `未绿` in the progress line mean, and list every engine
+command the CLI's help lists, with `.ultra/records/milestones/<id>-review.md` as the review
+path `milestone close` takes.
+Done when: a new user can install, start a project and close a milestone by following the
+README, and every command it lists is one the engine has (M-P6 gate, the Owner's
+"全部修复").

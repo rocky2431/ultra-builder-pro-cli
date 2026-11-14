@@ -705,10 +705,13 @@ test('closed milestones keep counting: regressions show on the line and their st
   assert.equal(byId(state.nodes)['N-02'].state, 'stale');
   assert.equal(byId(state.nodes)['N-03'].state, 'blocked');
   assert.equal(state.next, 'N-02');
-  assert.equal(state.closed_not_green, 2);
+  // REQ-002 is stale only because its text changed while its checks last passed: it is to be
+  // rechecked, not counted as not green (REQ-P6-status).
+  assert.equal(state.closed_not_green, 1);
+  assert.equal(state.closed_recheck, 1);
   assert.equal(
     state.line,
-    'M2 · 1/1 绿 · 下一项 N-02 · 本里程碑计划变更 1 次 · 已关闭里程碑 2 项未绿 · 计划门待重跑',
+    'M2 · 1/1 绿 · 下一项 N-02 · 本里程碑计划变更 1 次 · 已关闭里程碑 1 项未绿 · 已关闭里程碑 1 项待复核 · 计划门待重跑',
   );
 });
 
@@ -1346,6 +1349,7 @@ test('the engine stays within its budget, has no dependencies, and keeps lines r
     const sourceLines = source.split('\n');
     // The Owner's budget counts real lines, as `wc -l` does: the newline that ends a file's last
     // line does not start another one (Owner, 2026-11-04; the old count added one per file).
+    // The cap is 2050 lines (Owner, 2026-11-12, confirming the M-P6 contract; it was 2000).
     lines += sourceLines.length - (sourceLines.at(-1) === '' ? 1 : 0);
     sourceLines.forEach((line, index) => {
       assert.ok(line.length <= 100, `${name}:${index + 1} has ${line.length} characters`);
@@ -1354,5 +1358,5 @@ test('the engine stays within its budget, has no dependencies, and keeps lines r
       assert.ok(match[1].startsWith('node:') || match[1].startsWith('./'), `${name} requires ${match[1]}`);
     }
   }
-  assert.ok(lines <= 2000, `engine has ${lines} lines`);
+  assert.ok(lines <= 2050, `engine has ${lines} lines`);
 });

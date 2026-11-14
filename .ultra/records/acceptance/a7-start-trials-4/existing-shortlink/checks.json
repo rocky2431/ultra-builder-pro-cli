@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "INV-suite",
+      "covers": [],
+      "run": "node --test --test-reporter=spec test/*.test.cjs test/m4/*.test.cjs",
+      "timeout_sec": 180,
+      "expect": "^\\s*✔ REQ-redirect: an unknown code answers 404 with an HTML page",
+      "fix": "Run the command, read the first ✖ test and its error, and repair src/ (never the test) until the existing suite passes again."
+    },
+    {
+      "id": "C-total-visits",
+      "covers": ["REQ-total-visits"],
+      "run": "node --test --test-reporter=spec test/m4/total-visits.test.cjs",
+      "timeout_sec": 120,
+      "expect": "^\\s*✔ REQ-total-visits: the page shows at the top the sum of every listed link's visits"
+    },
+    {
+      "id": "C-deleted",
+      "covers": ["REQ-deleted-page"],
+      "run": "node --test --test-reporter=spec test/m4/deleted.test.cjs",
+      "timeout_sec": 120,
+      "expect": "^\\s*✔ REQ-deleted-page: a deleted short link answers 410 with a page saying 已删除"
+    },
+    {
+      "id": "C-journey-m4",
+      "covers": ["REQ-deleted-page"],
+      "run": "node --test --test-reporter=spec test/m4/journey-m4.test.cjs",
+      "timeout_sec": 120,
+      "expect": "^\\s*✔ M4 journey: the page counts every visit, and a deleted link says 已删除"
+    }
+  ]
+}

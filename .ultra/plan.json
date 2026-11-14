@@ -50,6 +50,18 @@
         "REQ-P5-drive",
         "REQ-P5-package"
       ]
+    },
+    {
+      "id": "M-P6",
+      "title": "Project knowledge and a status the Owner can trust",
+      "journey": "C-engine-p6",
+      "requirements": [
+        "REQ-P6-knowledge",
+        "REQ-P6-status",
+        "REQ-P6-close",
+        "REQ-P6-method",
+        "REQ-P6-docs"
+      ]
     }
   ],
   "nodes": [
@@ -178,6 +190,43 @@
         "CHANGELOG.md",
         "CLAUDE.md",
         "AGENTS.md"
+      ]
+    },
+    {
+      "id": "N-P6-engine",
+      "milestone": "M-P6",
+      "title": "Brief knowledge, design.md ownership, recheck status, own-review close, drive progress",
+      "covers": [
+        "REQ-P6-knowledge",
+        "REQ-P6-status",
+        "REQ-P6-close"
+      ],
+      "depends": [
+        "N-P5-drive"
+      ],
+      "scope": [
+        "engine/"
+      ]
+    },
+    {
+      "id": "N-P6-method",
+      "milestone": "M-P6",
+      "title": "Start any project, keep knowledge flowing, references for drive and merge",
+      "covers": [
+        "REQ-P6-method",
+        "REQ-P6-docs"
+      ],
+      "depends": [
+        "N-P5-package"
+      ],
+      "scope": [
+        "skills/ultra/",
+        "docs/examples/drive/",
+        "README.md",
+        "README.zh-CN.md",
+        "CHANGELOG.md",
+        "package.json",
+        "package-lock.json"
       ]
     }
   ]
