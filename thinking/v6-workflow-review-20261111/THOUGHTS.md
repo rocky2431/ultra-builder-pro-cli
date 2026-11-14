@@ -9,10 +9,12 @@
 - 门第 4 步 Owner 原话（2026-11-12）：“先修 准确地说，全部修复完成了之后，我才会去做测试”；选 A（“选A吧”）。放行原话（2026-11-13）：“我放行啊，你全部搞完了之后我才会开始测试啊，你不要留尾巴”。
 - 评审：第 1–3 轮都 accept（`M-P6-review-1.md`、`-review-2.md`、`M-P6-review.md`）；核对 `M-P6-recheck-1.md`、`-recheck-2.md`（及 `-confirm`）、`-recheck-3.md` 都 accept。演示：`M-P6-demo.md`。
 - 放行后处理了演示里两件“默认不改”的事（裁决见 `.ultra/rulings.md` 末 2 行）：C-package 只要求主版本 6、锁文件与 package.json 一致；方法写明已有代码上用户文档何时是需求（改变安装、运行、配置、恢复方式，或改变文档已描述的行为），没有文档时用户须知的约束写进它所约束的需求。
-- 已做：门第 1 步在 `39b2bf2` 上主工作区和干净检出都 9/9；`6f3b3fe` 关闭 M-P6；`--no-ff` 合入 main（`1296995`）；main 上 `npm run verify:release` 414/414、0 漏洞，`npm pack --dry-run` 40 个文件，临时目录两宿主装好后 doctor healthy、卸载后不留文件；`~/.claude` 装为 6.1.0-rc.0（来自 `1296995`，doctor healthy，装好的 hook 在本仓库打出全绿状态行，`settings.json` 与安装前逐字节相同）。删了 `m-p6`、`m-p6-engine`、`m-p6-engine-2` 分支、`../ubp-p6-engine` 克隆和 `/tmp` 临时安装。
-- 没做（合同之外或等 Owner）：push、tag、npm 发布；Codex 没装（`~/.codex` 里原本就没有 UBP，装用 `node bin/install.js --codex --global`）；README 安装行仍写 `@6.0.0`，正式发布前改成发布版本，否则 `verify:release` 的版本守卫会红。
+- 已做：门第 1 步在 `39b2bf2` 上主工作区和干净检出都 9/9；`6f3b3fe` 关闭 M-P6；`--no-ff` 合入 main（`1296995`）；main 上 `npm run verify:release` 414/414、0 漏洞，`npm pack --dry-run` 40 个文件，临时目录两宿主装好后 doctor healthy、卸载后不留文件；发布前 `~/.claude` 先装过 6.1.0-rc.0（来自 `1296995`），装好的 hook 在本仓库打出全绿状态行。删了 `m-p6`、`m-p6-engine`、`m-p6-engine-2` 分支、`../ubp-p6-engine` 克隆和 `/tmp` 临时安装。
+- 发布（Owner 2026-11-13：“push tag npm发布 codex安装”）：`4380f68` `chore(release): 6.1.0`（package.json、锁文件、README `@6.1.0`、CHANGELOG 标题，版本守卫故意弄坏时会红），`check --all` 9/9；push main 到 `942482b`，CI 的 Ubuntu 和 macOS（Node 22）都通过，macOS 第一次真正跑完；带注释的 `v6.1.0` 打在 `4380f68`，`release.yml` 14 步成功，npm `latest` 为 6.1.0（带 provenance），GitHub release 已建。从 npm 装到临时 prefix 后两宿主 doctor healthy，npm 上的包与 tag 本地打包逐文件相同。
+- 安装：`~/.claude` 和 Codex 都装为 6.1.0（来自 `942482b`，doctor healthy；Codex hook 是否生效由 Codex 自己的信任决定，doctor 读不到，第一次用时在 Codex 里确认信任）。`~/.claude/settings.json` 没变；`~/.codex/config.toml` 只加了 `[plugins."ultra-builder-pro@personal"]`；`~/.agents/plugins/marketplace.json` 只换了条目顺序。安装前的副本在 `/tmp/ubp-codex-backup`。
+- 注意：`/opt/homebrew/bin/ultra-builder-pro-cli` 和 `ubp` 链到本仓库（8 月 14 日的 `npm link`），本机 `npx ultra-builder-pro-cli` 执行的是仓库代码，不是 npm 上的包；验证发布包要用 `npm install --prefix <临时目录>`。
 - 已知未结：D2（C-release 干净检出红一次）原因未知，只加了诊断。
-- 回退：在 `5fe3d9b` 的临时 worktree 里 `npm ci --ignore-scripts` 后 `node bin/install.js --claude --global`，装回 6.0.0。
+- 回退：发布后不能撤回 npm 版本，只能 `npm deprecate` 6.1.0 再发修复版；本机装回 6.0.0：在 `5fe3d9b` 的临时 worktree 里 `npm ci --ignore-scripts` 后 `node bin/install.js --claude --global`（Codex 用 `--codex --global --uninstall` 卸掉，再从备份恢复两个配置文件）。
 - 结果文件：`RESULT.md`。
 <!-- /current-state -->
 
