@@ -9,7 +9,7 @@ and executable checks. Node.js 22 or newer and Git are required.
 ## Install
 
 ```sh
-npm install -g ultra-builder-pro-cli@6.0.0
+npm install -g ultra-builder-pro-cli@6.1.0
 ubp --claude --global
 ubp --codex --global
 # Or install both:

@@ -45,7 +45,7 @@
 - A check's `expect` names one test's `✔` line, never a pass count (2026-11-12).
 - The milestone review's instructions live once, in `skills/ultra/references/review.md`
   (2026-11-12).
-- Version 6.1.0-rc.0 until release; the README pins the published version (2026-11-12).
+- Version 6.1.0, released 2026-11-13; the README pins the published version, and a release whose README names another version fails `verify:release`.
 
 ## Facts
 

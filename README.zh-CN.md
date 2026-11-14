@@ -9,7 +9,7 @@ SessionStart hook。模型负责判断，引擎从项目文件与可执行检查
 ## 安装
 
 ```sh
-npm install -g ultra-builder-pro-cli@6.0.0
+npm install -g ultra-builder-pro-cli@6.1.0
 ubp --claude --global
 ubp --codex --global
 # 或一次安装两个宿主：

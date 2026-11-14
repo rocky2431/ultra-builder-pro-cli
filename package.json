@@ -1,6 +1,6 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "6.1.0-rc.0",
+  "version": "6.1.0",
   "description": "Project method and deterministic progress engine for Claude Code and Codex.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",

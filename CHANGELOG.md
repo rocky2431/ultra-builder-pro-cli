@@ -5,9 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-The package version is 6.1.0-rc.0 until this is released.
+## [6.1.0] — 2026-11-13
 
 - Start any project, empty or with existing code, in four steps: survey what exists,
   investigate only the unknowns whose answer changes a requirement, a check or the plan,
