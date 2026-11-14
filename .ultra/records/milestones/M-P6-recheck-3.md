@@ -25,3 +25,9 @@ Verdict: accept
 ## Controller disposition (2026-11-13)
 
 All three taken, per the Owner's "不要留尾巴": finding 1 as proposed; finding 2 as proposed, together with its related gap ("or a behavior it already describes" joins the condition); finding 3 stands as recorded. New assertions committed red first; ruling appended to `.ultra/rulings.md`.
+
+## Confirmation of 6ddfb66 and 39b2bf2 (same reviewer)
+
+Accept. Point 1: `/^6\./u` plus the two lock equalities; 6.x prereleases with hyphens pass, 5.x, 7.x and a disagreeing lock still fail. Point 2: a word-level diff from `f7f90ca` to `39b2bf2` shows only "or a behavior it already describes" and "(on existing code without one, of the requirement it constrains)"; the CHANGELOG repeats the condition accurately. Gate step 1 reflow: 160 words, same order (compared in bash). `SKILL.md` 395 lines. Tests on archive copies: `6ddfb66` 30 pass, 1 fail (the case holding the two new assertions, so red first); `39b2bf2` 31/31. Nothing blocking.
+
+Verdict: accept
